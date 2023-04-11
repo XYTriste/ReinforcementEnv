@@ -21,9 +21,10 @@ def visit_end(index, end_index):
 class WindGridEnv(gym.Env):
     winds = [0, 0, 0, 1, 1, 1, 2, 2, 1, 0]
 
-    def __init__(self, grid_width=10, grid_height=7, start_index=(3, 3), end_index=(7, 3)):
+    def __init__(self, grid_width=7, grid_height=10, start_index=(3, 0), end_index=(3, 7), rewards=(0, -1, 1)):
         self.start_index = start_index
         self.end_index = end_index
+        self.rewards = rewards  # 环境中不同位置的奖励，第一个是移动奖励，第二个是撞墙的奖励，第三个是到达终点的奖励
 
         self.player_index = None
 
@@ -38,14 +39,14 @@ class WindGridEnv(gym.Env):
         transition = self.get_transition(action)
         position, transition_flag = self.state_transition(transition)
         if transition_flag:
-            reward = 0
+            reward = self.rewards[0]
             if visit_end(position, self.end_index):
-                reward = 1.0
+                reward = self.rewards[2]
                 terminated = True
             else:
                 terminated = False
         else:
-            reward = -0.05
+            reward = self.rewards[1]
             terminated = False
         return self._get_observation(), reward, terminated, False, {}
 
@@ -57,9 +58,12 @@ class WindGridEnv(gym.Env):
             *,
             seed: Optional[int] = None,
             options: Optional[dict] = None,
+            rewards: Optional[Tuple] = None,
     ) -> Tuple[ObsType, dict]:
         self.grid_map = np.zeros((self.grid_width, self.grid_height))
         self.player_index = self.start_index
+        if rewards is not None:
+            self.rewards = rewards
 
         return self._get_observation(), {}
 
@@ -85,10 +89,21 @@ class WindGridEnv(gym.Env):
         if isLegalIndex(after_index, self.grid_width, self.grid_height):
             self.player_index = after_index
             transition_flag = True
+            self.blow()
         return self.player_index, transition_flag
 
     def blow(self):
-        assert len(WindGridEnv.winds) == self.grid_width, "风的宽度和格子世界的宽度不同"
+        """
+        风将玩家吹到别的位置去
+        """
+        assert len(WindGridEnv.winds) == self.grid_height, "风的宽度和格子世界的宽度不同"
         player_index_x, player_index_y = self.player_index
         blowing_rate = WindGridEnv.winds[player_index_y]
-        after_blow
+        after_blow_x = player_index_x - blowing_rate
+        after_blow_y = player_index_y
+        if after_blow_x < 0:
+            after_blow_x = 0
+        elif after_blow_x < self.end_index[0] < player_index_x:
+            self.player_index = self.end_index
+            return
+        self.player_index = after_blow_x, after_blow_y
