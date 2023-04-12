@@ -6,11 +6,11 @@ env = WindGridEnv()
 env.reset()
 agent = WindGridAgent(env)
 
-pbounds = {'alpha': (0.1, 0.2), 'gamma': (0.8, 0.95), 'epsilon': (0.1, 0.5), 'lambda_': (0.3, 0.9)}
+pbounds = {'alpha': (0.1, 0.2), 'gamma': (0.8, 0.95), 'epsilon': (0.3, 0.5), 'lambda_': (0.3, 0.9)}
 
 
 def iteratorFunction(gamma, alpha, lambda_, epsilon):
-    _, avg_reward = agent.sarsa_algorithm(gamma, alpha, lambda_, epsilon)
+    _, avg_reward = agent.sarsa_algorithm(gamma, alpha, lambda_, epsilon, rounds=2000, isTrain=True)
     return avg_reward if avg_reward > -np.inf else -np.inf
 
 

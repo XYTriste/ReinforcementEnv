@@ -7,10 +7,9 @@ agent = WindGridAgent(env)
 
 
 def calculateGroup(step_list, group_size):
-    global episode_list
-
     averages_step = []
     average_episode = []
+    episode_list = [i for i in range(10000)]
 
     for i in range(0, len(step_list), group_size):
         group = step_list[i: i + group_size]
@@ -54,4 +53,11 @@ if __name__ == '__main__':
 
     rounds = 200000
 
-    step_list_Q_learning = agent.Q_learning_algorithm(setflag=1)
+    step_list_Q_learning, _ = agent.Q_learning_algorithm(setflag=True, alpha=0.1873, epsilon=0.43, gamma=0.89, lambda_=0.7834)
+    # step_list_sarsa_1, _ = agent.sarsa_algorithm(setflag=False, alpha=0.1671, epsilon=0.3696, gamma=0.8379, rounds=10000)
+
+    flg, ax = plt.subplots()
+    average_episode, averages_step_sarsa_1 = calculateGroup(step_list_Q_learning, 100)
+    ax.plot(average_episode, averages_step_sarsa_1, label="(-1, -1, 1)")
+    ax.legend()
+    plt.show()
