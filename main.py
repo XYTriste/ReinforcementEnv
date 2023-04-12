@@ -16,5 +16,6 @@ ax.plot(x2, y2, label='Line 2')
 # 添加图例
 ax.legend()
 
+plt.savefig("./difference.png")
 # 显示图形
 plt.show()
