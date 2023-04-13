@@ -10,3 +10,7 @@ class MyEnv(gym.Env):
 
     def render(self) -> Optional[Union[RenderFrame, List[RenderFrame]]]:
         pass
+
+
+list = {}
+print(type(list) is dict)

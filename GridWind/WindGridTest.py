@@ -4,12 +4,14 @@ from Agent import *
 env = WindGridEnv()
 env.reset()
 agent = WindGridAgent(env)
+flg, ax = plt.subplots()
+
+episode_list = [i * 100 for i in range(100)]
 
 
 def calculateGroup(step_list, group_size):
     averages_step = []
     average_episode = []
-    episode_list = [i for i in range(10000)]
 
     for i in range(0, len(step_list), group_size):
         group = step_list[i: i + group_size]
@@ -36,8 +38,6 @@ def calculate_sarsa():
     step_list_sarsa_lambda_0 = agent.sarsa_lambda_algorithm(rounds, r_0)
     step_list_sarsa_lambda_1 = agent.sarsa_lambda_algorithm(rounds, r_1)
 
-    flg, ax = plt.subplots()
-
     average_episode, averages_step_sarsa_0 = calculateGroup(step_list_sarsa_0, 100)
     _, averages_step_sarsa_1 = calculateGroup(step_list_sarsa_1, 100)
     ax.plot(average_episode, averages_step_sarsa_0, label="(0, -1, 1)")
@@ -48,16 +48,85 @@ def calculate_sarsa():
     plt.show()
 
 
-if __name__ == '__main__':
-    r_1 = (0, -1, 1)
+def training_model():
+    step_list_sarsa_0, _ = agent.sarsa_algorithm(setflag=False, rounds=10000, isTrain=False)
+    step_list_sarsa_1, _ = agent.sarsa_algorithm(setflag=True, rounds=10000, isTrain=False)
+    step_list_sarsa_lambda_0, _ = agent.sarsa_lambda_algorithm(setflag=False, rounds=10000, isTrain=False)
+    step_list_sarsa_lambda_1, _ = agent.sarsa_lambda_algorithm(setflag=True, rounds=10000, isTrain=False)
+    step_list_Q_learning_0, _ = agent.Q_learning_algorithm(setflag=False, rounds=10000, isTrain=False)
+    step_list_Q_learning_1, _ = agent.Q_learning_algorithm(setflag=True, rounds=10000, isTrain=False)
 
-    rounds = 200000
+    return step_list_sarsa_0, \
+        step_list_sarsa_1, \
+        step_list_sarsa_lambda_0, \
+        step_list_sarsa_lambda_1, \
+        step_list_Q_learning_0, \
+        step_list_Q_learning_1
 
-    step_list_Q_learning, _ = agent.Q_learning_algorithm(setflag=True, alpha=0.1873, epsilon=0.43, gamma=0.89, lambda_=0.7834)
-    # step_list_sarsa_1, _ = agent.sarsa_algorithm(setflag=False, alpha=0.1671, epsilon=0.3696, gamma=0.8379, rounds=10000)
 
-    flg, ax = plt.subplots()
-    average_episode, averages_step_sarsa_1 = calculateGroup(step_list_Q_learning, 100)
-    ax.plot(average_episode, averages_step_sarsa_1, label="(-1, -1, 1)")
+def get_average_data(step_list, group_size):
+    averages_step = []
+
+    for i in range(0, len(step_list), group_size):
+        group = step_list[i: i + group_size]
+        avg = sum(group) / len(group)
+
+        averages_step.append(avg)
+
+    return averages_step
+
+
+def paint_img(x, y, imageName, label):
+    global ax
+    path = "./images/" + imageName + ".png"
+
+    if type(y) is list:
+        for i in range(0, len(y)):
+            ax.plot(x, y[i], label=label[i])
+    else:
+        ax.plot(x, y, label=label)
     ax.legend()
-    plt.show()
+    plt.savefig(path)
+    plt.close()
+
+
+if __name__ == '__main__':
+    all_step_list = training_model()
+    average_list = []
+    for i in all_step_list:
+        average_list.append(get_average_data(i, 100))
+
+    labels = ["Sarsa_0", "S_L_0", "Q_learning_0"]
+    images_name = "Difference for 3 0"
+    all_0 = []
+    for i in range(0, 6, 2):
+        all_0.append(all_step_list[i])
+    paint_img(episode_list, all_0, images_name, labels)
+
+    labels = ["Sarsa_1", "S_L_1", "Q_learning_1"]
+    images_name = "Difference for 3 1"
+    all_1 = []
+    for i in range(1, 6, 2):
+        all_1.append(all_step_list[i])
+    paint_img(episode_list, all_1, images_name, labels)
+
+    labels = ["Sarsa_0", "Sarsa_1"]
+    images_name = "Difference for Sarsa"
+    sarsas = []
+    for i in range(0, 2):
+        sarsas.append(all_step_list[i])
+    paint_img(x, sarsas, images_name, labels)
+
+    labels = ["Sarsa_lambda_0", "Sarsa_lambda_1"]
+    images_name = "Difference for Sarsa_lambda"
+    sarsas = []
+    for i in range(2, 4):
+        sarsas.append(all_step_list[i])
+    paint_img(x, sarsas, images_name, labels)
+
+    labels = ["Q_learning_0", "Q_learning_1"]
+    images_name = "Difference for Q learning"
+    sarsas = []
+    for i in range(4, 6):
+        sarsas.append(all_step_list[i])
+    paint_img(x, sarsas, images_name, labels)
