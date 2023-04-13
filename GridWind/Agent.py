@@ -113,6 +113,7 @@ class WindGridAgent:
         # print("The minimal step is: {}. And the min episode is: {}".format(len(min_episode), min_episode))
         if isTrain is True:
             print("Training complete.")
+            print("Playing start.")
 
         avg_reward = 0
         step = 0
@@ -136,11 +137,11 @@ class WindGridAgent:
                         return _, -1E15
 
             avg_reward /= 10
-            print("Testing complete.")
+            print("Playing complete.")
 
         return step_list, avg_reward if avg_reward > -1E15 else -1E15
 
-    def sarsa_lambda_algorithm(self, gamma=0.9, alpha=0.1, lambda_=0.5, epsilon=0.1, setflag=False):
+    def sarsa_lambda_algorithm(self, gamma=0.9, alpha=0.1, lambda_=0.5, epsilon=0.1, setflag=False, *, rounds=2000, isTrain=False):
         self.reset(gamma, alpha, lambda_, epsilon)
 
         if setflag is False:
@@ -154,6 +155,9 @@ class WindGridAgent:
         min_episode = None
 
         E = np.zeros((self.env.grid_width, self.env.grid_height, 4))  # 引入效用迹
+
+        if isTrain is True:
+            print("Training start")
 
         for i in range(self.rounds):
 
@@ -197,24 +201,34 @@ class WindGridAgent:
         #     print("round {} over. experience step: {}".format(i + 1, experience_step))
         # print("The minimal step is: {}. And the min episode is: {}".format(len(min_episode), min_episode))
 
-        avg_reward = 0
-        for i in range(10):
-            obs, _ = self.env.reset(rewards=rewards)
-            state = obs
-            action = greedy_policy(self, state)
-            done = False
-            while not done:
-                next_state, reward, done, _, _ = self.env.step(action)
-
-                state = next_state
+        if isTrain is True:
+            print("Training complete.")
+            print("Playing start.")
+            avg_reward = 0
+            step = 0
+            start_time = time.time()
+            for i in range(10):
+                obs, _ = self.env.reset(rewards=rewards)
+                state = obs
                 action = greedy_policy(self, state)
-                avg_reward += reward
+                done = False
+                while not done:
+                    next_state, reward, done, _, _ = self.env.step(action)
 
-        avg_reward /= 10
+                    state = next_state
+                    action = greedy_policy(self, state)
+                    avg_reward += reward
+
+                    if step > 3E6 or time.time() - start_time > 15:
+                        return _, -1E15
+
+            avg_reward /= 10
+
+            print("Playing complete.")
 
         return step_list, avg_reward if avg_reward > -1E15 else -1E15
 
-    def Q_learning_algorithm(self, gamma=0.9, alpha=0.1, lambda_=0.5, epsilon=0.1, setflag=False):
+    def Q_learning_algorithm(self, gamma=0.9, alpha=0.1, lambda_=0.5, epsilon=0.1, setflag=False, *, rounds=2000, isTrain=False):
         self.reset(gamma, alpha, lambda_, epsilon)
         if setflag is False:
             rewards = (0, -1, 1)
@@ -225,6 +239,9 @@ class WindGridAgent:
 
         min_step = 999999
         min_episode = None
+
+        if isTrain is True:
+            print("Training start")
 
         for i in range(self.rounds):
             obs, _ = self.env.reset(rewards=rewards)
@@ -261,23 +278,35 @@ class WindGridAgent:
             if experience_step < min_step:
                 min_step = experience_step
                 min_episode = episode
-            print("round {} over. experience step: {}".format(i + 1, experience_step))
-        print("The minimal step is: {}. And the min episode is: {}".format(len(min_episode), min_episode))
+        #     print("round {} over. experience step: {}".format(i + 1, experience_step))
+        # print("The minimal step is: {}. And the min episode is: {}".format(len(min_episode), min_episode))
 
         avg_reward = 0
-        for i in range(10):
-            obs, _ = self.env.reset(rewards=rewards)
-            state = obs
-            action = greedy_policy(self, state)
-            done = False
-            while not done:
-                next_state, reward, done, _, _ = self.env.step(action)
+        if isTrain is True:
+            print("Training complete.")
+            print("Playing start.")
+            step = 0
+            start_time = time.time()
 
-                state = next_state
+            for i in range(10):
+                obs, _ = self.env.reset(rewards=rewards)
+                state = obs
                 action = greedy_policy(self, state)
-                avg_reward += reward
+                done = False
+                while not done:
+                    next_state, reward, done, _, _ = self.env.step(action)
 
-        avg_reward /= 10
+                    state = next_state
+                    action = greedy_policy(self, state)
+                    avg_reward += reward
+
+                    if step > 3E6 or time.time() - start_time > 15:
+                        return _, -1E15
+
+            avg_reward /= 10
+
+        if isTrain is True:
+            print("Playing complete.")
 
         return step_list, avg_reward if avg_reward > -1E15 else -1E15
 
