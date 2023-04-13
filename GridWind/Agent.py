@@ -104,7 +104,7 @@ class WindGridAgent:
 
                 experience_step += 1
 
-                if time.time() - loop_start_time > 45:
+                if time.time() - loop_start_time > 25:
                     return _, -1E15
 
             if self.epsilon > 0.1:
@@ -230,7 +230,7 @@ class WindGridAgent:
                     action = greedy_policy(self, state)
                     avg_reward += reward
 
-                    if step > 3E6 or time.time() - start_time > 15:
+                    if isTrain is True and time.time() - start_time > 15:
                         return _, -1E15
 
             avg_reward /= 10
@@ -316,7 +316,7 @@ class WindGridAgent:
                     action = greedy_policy(self, state)
                     avg_reward += reward
 
-                    if step > 3E6 or time.time() - start_time > 15:
+                    if isTrain is True and time.time() - start_time > 15:
                         return _, -1E15
 
             avg_reward /= 10
