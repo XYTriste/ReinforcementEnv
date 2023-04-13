@@ -76,6 +76,8 @@ class WindGridAgent:
             episode = []
             experience_step = 0
 
+            loop_start_time = time.time()
+
             while not done:
                 next_state, reward, done, _, _ = self.env.step(action)
                 next_action = epsilon_greedy_policy(self, next_state, self.epsilon)
@@ -101,6 +103,9 @@ class WindGridAgent:
                     episode.append((state, action))
 
                 experience_step += 1
+
+                if time.time() - loop_start_time > 45:
+                    return _, -1E15
 
             if self.epsilon > 0.1:
                 self.epsilon *= 0.99
@@ -133,7 +138,7 @@ class WindGridAgent:
                     avg_reward += reward
 
                     step += 1
-                    if step > 3E6 or time.time() - start_time > 15:
+                    if isTrain is True and time.time() - loop_start_time > 25:
                         return _, -1E15
 
             avg_reward /= 10
@@ -170,6 +175,7 @@ class WindGridAgent:
             episode = []
             experience_step = 0
 
+            loop_start_time = time.time()
             while not done:
                 next_state, reward, done, _, _ = self.env.step(action)
                 next_action = epsilon_greedy_policy(self, next_state, epsilon)
@@ -192,6 +198,10 @@ class WindGridAgent:
                 if not done:
                     episode.append((state, action))
                     experience_step += 1
+
+                if isTrain is True and time.time() - loop_start_time > 25:
+                    return _, -1E15
+
             if epsilon > 0.1:
                 epsilon *= 0.99
             step_list.append(experience_step)
@@ -201,10 +211,11 @@ class WindGridAgent:
         #     print("round {} over. experience step: {}".format(i + 1, experience_step))
         # print("The minimal step is: {}. And the min episode is: {}".format(len(min_episode), min_episode))
 
+        avg_reward = 0
         if isTrain is True:
             print("Training complete.")
             print("Playing start.")
-            avg_reward = 0
+
             step = 0
             start_time = time.time()
             for i in range(10):
@@ -228,7 +239,7 @@ class WindGridAgent:
 
         return step_list, avg_reward if avg_reward > -1E15 else -1E15
 
-    def Q_learning_algorithm(self, gamma=0.9, alpha=0.1, lambda_=0.5, epsilon=0.1, setflag=False, *, rounds=2000, isTrain=False):
+    def Q_learning_algorithm(self, gamma=0.9, alpha=0.1, lambda_=0.5, epsilon=0.5, setflag=False, *, rounds=2000, isTrain=False):
         self.reset(gamma, alpha, lambda_, epsilon)
         if setflag is False:
             rewards = (0, -1, 1)
@@ -252,6 +263,8 @@ class WindGridAgent:
             experience_step = 0
             episode = []
 
+            loop_start_time = time.time()
+
             while not done:
                 next_state, reward, done, _, _ = self.env.step(e_action)  # 执行行为策略的行为得到下一步状态和奖励等
                 g_action = greedy_policy(self, next_state)
@@ -270,6 +283,9 @@ class WindGridAgent:
                 if not done:
                     episode.append((state, e_action))
                     experience_step += 1
+
+                if isTrain is True and time.time() - loop_start_time > 25:
+                    return _, -1E15
 
             if epsilon > 0.1:
                 epsilon *= 0.99

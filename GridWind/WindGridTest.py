@@ -87,6 +87,7 @@ def paint_img(x, y, imageName, label):
         ax.plot(x, y, label=label)
     ax.legend()
     plt.savefig(path)
+    # plt.show()
     plt.close()
 
 
@@ -115,18 +116,18 @@ if __name__ == '__main__':
     sarsas = []
     for i in range(0, 2):
         sarsas.append(all_step_list[i])
-    paint_img(x, sarsas, images_name, labels)
+    paint_img(episode_list, sarsas, images_name, labels)
 
     labels = ["Sarsa_lambda_0", "Sarsa_lambda_1"]
     images_name = "Difference for Sarsa_lambda"
     sarsas = []
     for i in range(2, 4):
         sarsas.append(all_step_list[i])
-    paint_img(x, sarsas, images_name, labels)
+    paint_img(episode_list, sarsas, images_name, labels)
 
     labels = ["Q_learning_0", "Q_learning_1"]
     images_name = "Difference for Q learning"
     sarsas = []
     for i in range(4, 6):
         sarsas.append(all_step_list[i])
-    paint_img(x, sarsas, images_name, labels)
+    paint_img(episode_list  , sarsas, images_name, labels)
