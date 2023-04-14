@@ -1,12 +1,12 @@
 import matplotlib.pyplot as plt
-from Agent import *
+from GridWind.Agent import *
 
 env = WindGridEnv()
 env.reset()
 agent = WindGridAgent(env)
-flg, ax = plt.subplots()
 
-episode_list = [i * 100 for i in range(100)]
+
+episode_list = [i for i in range(0, 10000, 100)]
 
 
 def calculateGroup(step_list, group_size):
@@ -49,12 +49,18 @@ def calculate_sarsa():
 
 
 def training_model():
-    step_list_sarsa_0, _ = agent.sarsa_algorithm(setflag=False, rounds=10000, isTrain=False)
-    step_list_sarsa_1, _ = agent.sarsa_algorithm(setflag=True, rounds=10000, isTrain=False)
-    step_list_sarsa_lambda_0, _ = agent.sarsa_lambda_algorithm(setflag=False, rounds=10000, isTrain=False)
-    step_list_sarsa_lambda_1, _ = agent.sarsa_lambda_algorithm(setflag=True, rounds=10000, isTrain=False)
-    step_list_Q_learning_0, _ = agent.Q_learning_algorithm(setflag=False, rounds=10000, isTrain=False)
-    step_list_Q_learning_1, _ = agent.Q_learning_algorithm(setflag=True, rounds=10000, isTrain=False)
+    step_list_sarsa_0, _ = agent.sarsa_algorithm(setflag=False, rounds=10000, isTrain=False, gamma=0.91, epsilon=0.538,
+                                                 alpha=0.156)
+    step_list_sarsa_1, _ = agent.sarsa_algorithm(setflag=True, rounds=10000, isTrain=False, gamma=0.91, epsilon=0.538,
+                                                 alpha=0.156)
+    step_list_sarsa_lambda_0, _ = agent.sarsa_lambda_algorithm(setflag=False, rounds=10000, isTrain=False, gamma=0.86,
+                                                               epsilon=0.320, alpha=0.0241)
+    step_list_sarsa_lambda_1, _ = agent.sarsa_lambda_algorithm(setflag=True, rounds=10000, isTrain=False, gamma=0.86,
+                                                               epsilon=0.320, alpha=0.0241)
+    step_list_Q_learning_0, _ = agent.Q_learning_algorithm(setflag=False, rounds=10000, isTrain=False, gamma=0.74,
+                                                           epsilon=0.415, alpha=0.46, lambda_=0.697)
+    step_list_Q_learning_1, _ = agent.Q_learning_algorithm(setflag=True, rounds=10000, isTrain=False, gamma=0.74,
+                                                           epsilon=0.415, alpha=0.46, lambda_=0.697)
 
     return step_list_sarsa_0, \
         step_list_sarsa_1, \
@@ -77,7 +83,7 @@ def get_average_data(step_list, group_size):
 
 
 def paint_img(x, y, imageName, label):
-    global ax
+    flg, ax = plt.subplots()
     path = "./images/" + imageName + ".png"
 
     if type(y) is list:
@@ -87,8 +93,8 @@ def paint_img(x, y, imageName, label):
         ax.plot(x, y, label=label)
     ax.legend()
     plt.savefig(path)
-    # plt.show()
-    plt.close()
+    plt.close(flg)
+
 
 
 if __name__ == '__main__':
@@ -101,33 +107,35 @@ if __name__ == '__main__':
     images_name = "Difference for 3 0"
     all_0 = []
     for i in range(0, 6, 2):
-        all_0.append(all_step_list[i])
+        all_0.append(average_list[i])
     paint_img(episode_list, all_0, images_name, labels)
 
     labels = ["Sarsa_1", "S_L_1", "Q_learning_1"]
     images_name = "Difference for 3 1"
     all_1 = []
     for i in range(1, 6, 2):
-        all_1.append(all_step_list[i])
+        all_1.append(average_list[i])
     paint_img(episode_list, all_1, images_name, labels)
 
     labels = ["Sarsa_0", "Sarsa_1"]
     images_name = "Difference for Sarsa"
     sarsas = []
     for i in range(0, 2):
-        sarsas.append(all_step_list[i])
+        sarsas.append(average_list[i])
     paint_img(episode_list, sarsas, images_name, labels)
 
     labels = ["Sarsa_lambda_0", "Sarsa_lambda_1"]
     images_name = "Difference for Sarsa_lambda"
     sarsas = []
     for i in range(2, 4):
-        sarsas.append(all_step_list[i])
+        sarsas.append(average_list[i])
     paint_img(episode_list, sarsas, images_name, labels)
 
     labels = ["Q_learning_0", "Q_learning_1"]
     images_name = "Difference for Q learning"
     sarsas = []
     for i in range(4, 6):
-        sarsas.append(all_step_list[i])
-    paint_img(episode_list  , sarsas, images_name, labels)
+        sarsas.append(average_list[i])
+    paint_img(episode_list, sarsas, images_name, labels)
+
+    plt.close()

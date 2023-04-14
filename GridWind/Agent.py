@@ -1,6 +1,7 @@
 import numpy as np
-from WindGridEnvironment import *
+from GridWind.WindGridEnvironment import *
 import time
+from GridWind.TrainingUtils import *
 
 
 class Agent:
@@ -52,7 +53,8 @@ class WindGridAgent:
         # print("The super parameter:")
         # print("gamma:{:.2f}, alpha:{:.2f}, lambda:{:.2f}, epsilon:{:.2f}".format(gamma, alpha, lambda_, epsilon))
 
-    def sarsa_algorithm(self, gamma=0.9, alpha=0.1, lambda_=0.5, epsilon=0.1, setflag=False, *, rounds=2000, isTrain=False):
+    def sarsa_algorithm(self, gamma=0.9, alpha=0.1, lambda_=0.5, epsilon=0.1, setflag=False, *, rounds=2000,
+                        isTrain=False):
         self.reset(gamma, alpha, lambda_, epsilon, rounds=rounds)
 
         if setflag is False:
@@ -67,6 +69,8 @@ class WindGridAgent:
 
         if isTrain is True:
             print("Training start.")
+        else:
+            print("Sarsa algorithm training {} rounds".format(rounds))
 
         for i in range(self.rounds):
             obs, _ = self.env.reset(rewards=rewards)
@@ -77,6 +81,8 @@ class WindGridAgent:
             experience_step = 0
 
             loop_start_time = time.time()
+            if i % 100 == 0:
+                print("Process training: {}%".format(process_bar(self.rounds, i)))
 
             while not done:
                 next_state, reward, done, _, _ = self.env.step(action)
@@ -146,7 +152,8 @@ class WindGridAgent:
 
         return step_list, avg_reward if avg_reward > -1E15 else -1E15
 
-    def sarsa_lambda_algorithm(self, gamma=0.9, alpha=0.1, lambda_=0.5, epsilon=0.1, setflag=False, *, rounds=2000, isTrain=False):
+    def sarsa_lambda_algorithm(self, gamma=0.9, alpha=0.1, lambda_=0.5, epsilon=0.1, setflag=False, *, rounds=2000,
+                               isTrain=False):
         self.reset(gamma, alpha, lambda_, epsilon)
 
         if setflag is False:
@@ -163,6 +170,8 @@ class WindGridAgent:
 
         if isTrain is True:
             print("Training start")
+        else:
+            print("Sarsa lambda algorithm training {} rounds".format(rounds))
 
         for i in range(self.rounds):
 
@@ -176,6 +185,9 @@ class WindGridAgent:
             experience_step = 0
 
             loop_start_time = time.time()
+            if i % 100 == 0:
+                print("Process training: {}%".format(process_bar(self.rounds, i)))
+
             while not done:
                 next_state, reward, done, _, _ = self.env.step(action)
                 next_action = epsilon_greedy_policy(self, next_state, epsilon)
@@ -239,7 +251,8 @@ class WindGridAgent:
 
         return step_list, avg_reward if avg_reward > -1E15 else -1E15
 
-    def Q_learning_algorithm(self, gamma=0.9, alpha=0.1, lambda_=0.5, epsilon=0.5, setflag=False, *, rounds=2000, isTrain=False):
+    def Q_learning_algorithm(self, gamma=0.9, alpha=0.1, lambda_=0.5, epsilon=0.5, setflag=False, *, rounds=2000,
+                             isTrain=False):
         self.reset(gamma, alpha, lambda_, epsilon)
         if setflag is False:
             rewards = (0, -1, 1)
@@ -253,6 +266,8 @@ class WindGridAgent:
 
         if isTrain is True:
             print("Training start")
+        else:
+            print("Q learning algorithm training {} rounds".format(rounds))
 
         for i in range(self.rounds):
             obs, _ = self.env.reset(rewards=rewards)
@@ -264,6 +279,8 @@ class WindGridAgent:
             episode = []
 
             loop_start_time = time.time()
+            if i % 100 == 0:
+                print("Process training: {}%".format(process_bar(self.rounds, i)))
 
             while not done:
                 next_state, reward, done, _, _ = self.env.step(e_action)  # 执行行为策略的行为得到下一步状态和奖励等
