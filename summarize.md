@@ -29,10 +29,49 @@
 1.1. **恒定折扣因子**：即折扣因子为一个常数，例如常用的γ=0.99。恒定折扣因子认为未来的奖励与当前的奖励同等重要，没有考虑时间上的权衡。
 1.2. **递减折扣因子**：折扣因子会随着时间的推移而减小，即未来的奖励比当前的奖励要少。递减折扣因子可以使得智能体更加关注近期的奖励，而对远期的奖励降低关注。
 1.3. **递增折扣因子**：与递减折扣因子相反，折扣因子会随着时间的推移而增加，即未来的奖励比当前的奖励要多。递增折扣因子可以使得智能体更加关注远期的奖励，而对近期的奖励降低关注。
-1.4. **超越折扣因子**：一种非线性的折扣因子，可以使得未来的奖励比线性折扣因子更具有权重。例如，超越折扣因子可以定义为γt，其中t是当前时间步数，γ为一个小于1的超参数.
-
+1.4. **超越折扣因子**：一种非线性的折扣因子，可以使得未来的奖励比线性折扣因子更具有权重。例如，超越折扣因子可以定义为γt，其中t是当前时间步数，γ为一个小于1的超参数.\
+$\quad$
 2. <span style="font-size:20px;">$\epsilon $</span>, <span style="font-family: Times New Roman; font-size:20px;">epsilon greedy policy</span>中决定"探索率"的参数。这个参数值的大小影响到算法迭代时对于状态空间的探索。如果$\epsilon$设置的过小，智能体更可能选择**当前被认为是最优的动作**，从而忽视对于其他动作的探索。这可能导致智能体陷入局部最优解，无法找到全局最优解。如果$\epsilon$设置的过大，智能体更可能执行随机动作，导致收敛速度变慢和性能下降。
-这里值得一提的是，在<span style="font-family: Times New Roman; font-size:20px;">epsilon greedy policy</span>策略中，只要我们能够保证$\epsilon$随着采样次数无限增多而趋向于0，我们就能够保证智能体策略收敛至贪婪策略。这被称为$GLIE(greedy\ in\ the\ limit\ with\ infinite\ exploration)$性质。
+这里值得一提的是，在<span style="font-family: Times New Roman; font-size:20px;">epsilon greedy policy</span>策略中，只要我们能够保证$\epsilon$随着采样次数无限增多而趋向于0，我们就能够保证智能体策略收敛至贪婪策略。这被称为$GLIE(greedy\ in\ the\ limit\ with\ infinite\ exploration)$性质。\
+$\quad$
+3. $\alpha$，学习率。一个很重要的超参数，它控制了每次更新模型参数的步长大小。学习率越大，每次参数更新的幅度就越大，但也可能会导致算法不稳定，甚至发生震荡。学习率越小，算法越稳定，但可能需要更多的迭代才能达到收敛。因此，学习率的选择对算法的性能和收敛速度具有重要影响。
+我们首次见到学习率，是在蒙特卡洛学习当中:
+$$
+V(S_t)\leftarrow V(S_t) + {1\over N(S_t)}(G_t - V(S_t))\\
+V(S_t)\leftarrow V(S_t) + {\alpha}(G_t - V(S_t))
+$$
+而在时序差分学习中，它的形式是这样的:
+$$
+V(S_t)\leftarrow V(S_t) + {\alpha}(R_{t+1}+\gamma V(S_{t+1}) - V(S_t))
+$$
+如果我们稍微换一个视角来看待它，它其实是这样的:
+$$
+\begin{align}
+V(S_{t}) &\leftarrow V(S_t) + \alpha (R + V(S_{t+1}) - V(S_t)) \\
+&=V(S_t) + \alpha(V^{'}(S_{t}) - V(S_t)) \\
+&=(1 - \alpha)V(S_t) + \alpha V^{'}(S_{t})
+\end{align}
+$$
+在这样的视角下，学习率似乎变得像是和<span style="font-size:20px;">$\epsilon $</span>一个形式。<span style="font-size:20px;">$\epsilon $</span>反应了我们选择行为时，选择随机行为的比重为<span style="font-size:20px;">$\epsilon $</span>，而选择最优行为的比重为<span style="font-size:20px;">$1-\epsilon $</span>。
+而学习率反应了一个类似的事情，<font color = "red">学习率反应了我们的$TD\ error$和当前状态价值在更新时各自占的比重关系。</font>\
+$\quad$
+4. $\lambda$，这是一个控制长期和短期奖励权重的超参数，它介于0和1之间。具体地，当lambda接近于0时，算法更加关注短期奖励，而当lambda接近于1时，算法更加关注长期奖励。这个超参数决定了算法对当前决策和未来可能决策的权衡。在n步时序差分算法中，lambda被用来加权n步后的累计奖励，从而影响算法的更新方向和速度。
+具体来说，若当前时间步为$t$，未来$n$步的累积奖励$G_n^t$可以表示为:
+$$
+G_n^{t}=\sum_{i=1}^n{\gamma^{i-1}r_{t+i}}+\gamma^n{V(S_{t+n})}
+$$
+那么，n步时序差分的$TD\ error$就可以表示为:
+$$
+\delta_t^{(n)}=G_t^{n}-V(S_t)
+$$
+而在n步时序差分中，$\lambda-$收获被设计为:
+$$
+G_t^{\lambda}=(1-\lambda)\sum_{n=1}^{\infty}{\lambda^{n-1}G_n^{t}}
+$$
+为什么说$\lambda$可以控制长期奖励和短期奖励的权重，如果我们展开$G_t^{\lambda}$，那么就有:
+$$
+G_t^{\lambda}=(1-\lambda)\sum_{i=1}^{n}{\lambda^{i-1}r_{i}}+
+$$
 
 
 # Sarsa算法
@@ -62,6 +101,18 @@ $$
 $$
 Q(s_t, a_t) \gets Q(s_t, a_t) + \alpha[ {\color{red}{-1}} + \gamma Q(s_{t+1}, a_{t+1}) - Q(s_t, a_t)]\quad  {\color{red}{\forall t \in [0, T - 1]}}
 $$
+
+## 效果展示
+当移动奖励为0时，不同算法的效果:
+![avatar](/GridWind/images/Difference%20for%203%200.png)
+当移动奖励为-1时,不同算法的效果:
+![avatar](/GridWind/images/Difference%20for%203%201.png)
+Sarsa算法在移动奖励为0或-1时的比较:
+![avatar](/GridWind/images/Difference%20for%20Sarsa.png)
+Sarsa lambda算法在移动奖励为0或-1时的比较:
+![avatar](/GridWind/images/Difference%20for%20Sarsa_lambda.png)
+Q learning算法在移动奖励为0或-1时的比较:
+![avatar](/GridWind/images/Difference%20for%20Q%20learning.png)
 
 ## 杂谈
 ### 关于TD target、TD error
