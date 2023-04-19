@@ -1,7 +1,7 @@
 import math
 import random
 
-from BlackJackEnv import *
+from BlackJackEnv_v0 import *
 import numpy as np
 from BlackJackUtils import *
 

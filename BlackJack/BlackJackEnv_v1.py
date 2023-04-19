@@ -43,6 +43,8 @@ class BlackJackEnvironment(gym.Env):
         """
         self.player = None
         self.dealer = None
+        self.playerHandCard = None
+        self.dealerHandCard = None
         self.action_space = spaces.Discrete(2)
         self.observation_space = spaces.Tuple(
             (spaces.Discrete(32), spaces.Discrete(11), spaces.Discrete(2))
