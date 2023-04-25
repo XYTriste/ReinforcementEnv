@@ -5,7 +5,6 @@ env = WindGridEnv()
 env.reset()
 agent = WindGridAgent(env)
 
-
 episode_list = [i for i in range(0, 10000, 100)]
 
 
@@ -94,7 +93,6 @@ def paint_img(x, y, imageName, label):
     ax.legend()
     plt.savefig(path)
     plt.close(flg)
-
 
 
 if __name__ == '__main__':
