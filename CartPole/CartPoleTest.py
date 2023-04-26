@@ -21,25 +21,25 @@ EPISODE = 2000
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-class Net(nn.Module):
+class MyNet(nn.Module):
     def __init__(self):
-        super(Net, self).__init__()
+        super(MyNet, self).__init__()
         self.fc1 = nn.Linear(N_STATES, 50)
         self.fc1.weight.data.normal_(0, 0.1)  # 网络权重参数初始化
         self.out = nn.Linear(50, N_ACTIONS)
-        self.out.weight.data.normal(0, 0.1)
+        self.out.weight.data.normal_(0, 0.1)
 
-        def forward(self, x):
-            x = self.fc1(x)
-            x = F.relu(x)
-            actions_value = self.out(x)
+    def forward(self, x):
+        x = self.fc1(x)
+        x = F.relu(x)
+        actions_value = self.out(x)
 
-            return actions_value
+        return actions_value
 
 
 class DQN:
     def __init__(self):
-        self.main_net, self.target_net = Net().to(device), Net().to(device)
+        self.main_net, self.target_net = MyNet().to(device), MyNet().to(device)
 
         self.learn_step_counter = 0  # 已训练的次数计数器
         self.memory_counter = 0  # 已保存的经验样本数量计数器
@@ -50,7 +50,7 @@ class DQN:
 
     def choose_action(self, x):
         x = torch.unsqueeze(torch.FloatTensor(x), 0)  # 在x的第0维添加一个维度，达到升维的效果
-
+        x = x.cuda()
         if np.random.uniform(0, 1) < EPSILON:
             actions_value = self.main_net.forward(x)
             action = torch.max(actions_value, 1)[1].data.cpu().numpy()  # 在actions_value的第1维上计算最大值
@@ -76,9 +76,13 @@ class DQN:
         batch_memory = self.memory[sample_index, :]
         batch_s = torch.FloatTensor(batch_memory[:, :N_STATES])
         batch_a = torch.LongTensor(batch_memory[:, N_STATES: N_STATES + 1].astype(int))
-        batch_r = torch.FloatTensor(batch_memory[:, N_STATES + 1, N_STATES + 2])
+        batch_r = torch.FloatTensor(batch_memory[:, N_STATES + 1 : N_STATES + 2])
         batch_s_prime = torch.FloatTensor(batch_memory[:, -N_STATES:])
 
+        batch_s = batch_s.cuda()
+        batch_a = batch_a.cuda()
+        batch_r = batch_r.cuda()
+        batch_s_prime = batch_s_prime.cuda()
         q = self.main_net(batch_s).gather(1, batch_a)  # 主网络对输入的一批状态，计算每个状态下所有的行为价值
         # 并从第 1 维中取出一批行为的价值。返回一个1维张量q，包含了这批状态-行为对的行为价值。
         q_target = self.target_net(batch_s_prime).detach()  # 在目标网络中计算后续状态的所有可能的行为价值
@@ -97,14 +101,18 @@ class DQN:
 if __name__ == '__main__':
     dqn = DQN()
 
+    fig, ax = plt.subplots()
+    x = np.arange(0, 500, 20)
+    y = np.arange(0, 10, 0.4)
+    line, = ax.plot(x, y)
     plot_x_data, plot_y_data = [], []
     for i in range(500):
-        state = env.reset()
+        state, _ = env.reset()
         episode_reward = 0
         while True:
             action = dqn.choose_action(state)
 
-            s_prime, r, done, _ = env.step(action)
+            s_prime, r, done, _, _ = env.step(action)
 
             x, x_dot, theta, theta_dot = s_prime
             r1 = (env.x_threshold - abs(x)) / env.x_threshold - 0.8
@@ -123,6 +131,12 @@ if __name__ == '__main__':
             if done:
                 break
             s = s_prime
-        plot_x_data.append(i)
-        plot_y_data.append(episode_reward)
-        plt.plot(plot_x_data, plot_y_data)
+        # plot_x_data.append(i)
+        # plot_y_data.append(episode_reward)
+        # plt.plot(plot_x_data, plot_y_data)
+        # plt.show()
+        y = episode_reward
+        line.set_ydata(y)
+        fig.canvas.draw()
+        fig.canvas.flush_events()
+        fig.show()
