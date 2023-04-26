@@ -5,7 +5,7 @@ import numpy as np
 import gym
 import matplotlib.pyplot as plt
 
-env = gym.make("CartPole-v0", render_mode="rgb_array")
+env = gym.make("CartPole-v1", render_mode="rgb_array")
 env = env.unwrapped
 N_ACTIONS = 2
 N_STATES = env.observation_space.shape[0]
@@ -19,14 +19,17 @@ MEMORY_CAPACITY = 2000
 EPISODE = 2000
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+torch.FloatTensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor  # 如果有GPU和cuda
+# ，数据将转移到GPU执行
+torch.LongTensor = torch.cuda.LongTensor if torch.cuda.is_available() else torch.LongTensor
 
 
 class MyNet(nn.Module):
     def __init__(self):
         super(MyNet, self).__init__()
-        self.fc1 = nn.Linear(N_STATES, 50)
+        self.fc1 = nn.Linear(N_STATES, 128)
         self.fc1.weight.data.normal_(0, 0.1)  # 网络权重参数初始化
-        self.out = nn.Linear(50, N_ACTIONS)
+        self.out = nn.Linear(128, N_ACTIONS)
         self.out.weight.data.normal_(0, 0.1)
 
     def forward(self, x):
@@ -50,19 +53,19 @@ class DQN:
 
     def choose_action(self, x):
         x = torch.unsqueeze(torch.FloatTensor(x), 0)  # 在x的第0维添加一个维度，达到升维的效果
-        x = x.cuda()
+        # x = x.cuda()
         if np.random.uniform(0, 1) < EPSILON:
+            action = np.random.randint(0, N_ACTIONS)
+        else:
             actions_value = self.main_net.forward(x)
             action = torch.max(actions_value, 1)[1].data.cpu().numpy()  # 在actions_value的第1维上计算最大值
             # 最大值返回的是一个元组，分别表示最大值及其下标。因此获取其下标并传递给cpu最后以numpy的形式返回
             action = action[0]
-        else:
-            action = np.random.randint(0, N_ACTIONS)
 
         return action
 
     def store_transition(self, s, a, r, s_prime):
-        transition = np.hstack((s, [a, r], s_prime))
+        transition = np.hstack((s, [a, r], s_prime))    # 将参数以水平方式堆叠成一个一维numpy数组
         index = self.memory_counter % MEMORY_CAPACITY
         self.memory[index, :] = transition
         self.memory_counter += 1
@@ -75,14 +78,14 @@ class DQN:
         sample_index = np.random.choice(MEMORY_CAPACITY, BATCH_SIZE)
         batch_memory = self.memory[sample_index, :]
         batch_s = torch.FloatTensor(batch_memory[:, :N_STATES])
-        batch_a = torch.LongTensor(batch_memory[:, N_STATES: N_STATES + 1].astype(int))
-        batch_r = torch.FloatTensor(batch_memory[:, N_STATES + 1 : N_STATES + 2])
+        batch_a = torch.LongTensor(batch_memory[:, N_STATES:N_STATES + 1].astype(int))
+        batch_r = torch.FloatTensor(batch_memory[:, N_STATES + 1:N_STATES + 2])
         batch_s_prime = torch.FloatTensor(batch_memory[:, -N_STATES:])
 
-        batch_s = batch_s.cuda()
-        batch_a = batch_a.cuda()
-        batch_r = batch_r.cuda()
-        batch_s_prime = batch_s_prime.cuda()
+        # batch_s = batch_s.cuda()
+        # batch_a = batch_a.cuda()
+        # batch_r = batch_r.cuda()
+        # batch_s_prime = batch_s_prime.cuda()
         q = self.main_net(batch_s).gather(1, batch_a)  # 主网络对输入的一批状态，计算每个状态下所有的行为价值
         # 并从第 1 维中取出一批行为的价值。返回一个1维张量q，包含了这批状态-行为对的行为价值。
         q_target = self.target_net(batch_s_prime).detach()  # 在目标网络中计算后续状态的所有可能的行为价值
@@ -98,17 +101,28 @@ class DQN:
         self.optimizer.step()  # 更新参数
 
 
-if __name__ == '__main__':
-    dqn = DQN()
-
-    fig, ax = plt.subplots()
-    x = np.arange(0, 500, 20)
-    y = np.arange(0, 10, 0.4)
-    line, = ax.plot(x, y)
-    plot_x_data, plot_y_data = [], []
+def play():
+    env = gym.make("CartPole-v1", render_mode="human")
     for i in range(500):
         state, _ = env.reset()
+        done = False
+        while not done:
+            action = dqn.choose_action(state)
+            s_prime, r, done, _, _ = env.step(action)
+            s = s_prime
+
+
+if __name__ == '__main__':
+    dqn = DQN()
+    rounds = 50000
+    # plt.axis([0, 500, 0, 10])
+    # plt.ion()
+    for i in range(rounds):
+        state, _ = env.reset()
         episode_reward = 0
+
+        if i % 100 == 0:
+            print("Process training: {}%".format(i / rounds * 100))
         while True:
             action = dqn.choose_action(state)
 
@@ -116,7 +130,8 @@ if __name__ == '__main__':
 
             x, x_dot, theta, theta_dot = s_prime
             r1 = (env.x_threshold - abs(x)) / env.x_threshold - 0.8
-            r2 = (env.theta_threshold_radians - abs(theta)) / env.theta_threshold_radians - 0.5
+            r2 = (env.theta_threshold_radians - abs(
+                theta)) / env.theta_threshold_radians - 0.5
             r = r1 + r2
 
             dqn.store_transition(state, action, r, s_prime)
@@ -125,18 +140,22 @@ if __name__ == '__main__':
             if dqn.memory_counter > MEMORY_CAPACITY:
                 dqn.learn()
                 if done:
-                    print('Episode: ', i,
-                          '| Episode_reward: ', round(episode_reward, 2))
+                    print('Episode: ', i, '| Episode_reward: ', round(episode_reward, 2))
 
             if done:
                 break
+
             s = s_prime
+        if EPSILON > 0.05:
+            EPSILON *= 0.99
+        else:
+            print("fuck")
         # plot_x_data.append(i)
         # plot_y_data.append(episode_reward)
         # plt.plot(plot_x_data, plot_y_data)
         # plt.show()
-        y = episode_reward
-        line.set_ydata(y)
-        fig.canvas.draw()
-        fig.canvas.flush_events()
-        fig.show()
+    #     plt.scatter(i, episode_reward)
+    #     plt.pause(0.1)
+    # plt.ioff()
+    # plt.show()
+    play()
