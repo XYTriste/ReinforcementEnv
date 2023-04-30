@@ -1,14 +1,6 @@
-import matplotlib.pyplot as plt
 import numpy as np
-import time
-
-plt.axis([0, 100, 0, 1])
-plt.ion()
-
-for i in range(100):
-    y = np.random.random()
-    plt.scatter(i, y)
-    plt.pause(0.05)
-
-plt.ioff()
-plt.show()
+s = np.array([1, 3, 4, 5])
+a = 1
+r = 0.8
+s_prime = np.array([4, 5, 1, 2])
+print(np.hstack((s, [a, r], s_prime)))

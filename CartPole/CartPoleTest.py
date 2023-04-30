@@ -6,17 +6,15 @@ import gym
 import matplotlib.pyplot as plt
 
 env = gym.make("CartPole-v1", render_mode="rgb_array")
-env = env.unwrapped
 N_ACTIONS = 2
 N_STATES = env.observation_space.shape[0]
 
 BATCH_SIZE = 32
-LR = 0.05
-EPSILON = 0.9
-GAMMA = 0.9
+LR = 0.01
+EPSILON = 0.5
+GAMMA = 0.95
 TARGET_REPLACE_ITER = 100  # 目标网络的更新速率，100指的是每更新当前网络100次则更新一次目标网络
 MEMORY_CAPACITY = 2000
-EPISODE = 2000
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 torch.FloatTensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor  # 如果有GPU和cuda
@@ -28,15 +26,14 @@ class MyNet(nn.Module):
     def __init__(self):
         super(MyNet, self).__init__()
         self.fc1 = nn.Linear(N_STATES, 128)
-        # self.fc1.weight.data.normal_(0, 0.1)  # 网络权重参数初始化
+        self.fc1.weight.data.normal_(0, 0.1)  # 网络权重参数初始化
         self.fc2 = nn.Linear(128, 128)
         self.out = nn.Linear(128, N_ACTIONS)
-        # self.out.weight.data.normal_(0, 0.1)
+        self.out.weight.data.normal_(0, 0.1)
 
     def forward(self, x):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-
         actions_value = self.out(x)
 
         return actions_value
@@ -45,6 +42,8 @@ class MyNet(nn.Module):
 class DQN:
     def __init__(self):
         self.main_net, self.target_net = MyNet().to(device), MyNet().to(device)
+        self.target_net.load_state_dict(self.main_net.state_dict())
+        self.target_net.eval()
 
         self.learn_step_counter = 0  # 已训练的次数计数器
         self.memory_counter = 0  # 已保存的经验样本数量计数器
@@ -55,15 +54,17 @@ class DQN:
 
     @torch.no_grad()
     def choose_action(self, x):
-        x = torch.unsqueeze(torch.FloatTensor(x), 0)  # 在x的第0维添加一个维度，达到升维的效果
-        # x = x.cuda()
         if np.random.uniform(0, 1) < EPSILON:
             action = np.random.randint(0, N_ACTIONS)
         else:
-            actions_value = self.main_net(x)
+            x = torch.unsqueeze(torch.FloatTensor(x), 0)  # 在x的第0维添加一个维度，达到升维的效果
+
+            actions_value = self.main_net.forward(x)
+            # res = torch.argmax(actions_value).item()
             action = torch.max(actions_value, 1)[1].data.cpu().numpy()  # 在actions_value的第1维上计算最大值
-            # 最大值返回的是一个元组，分别表示最大值及其下标。因此获取其下标并传递给cpu最后以numpy的形式返回
+            # # 最大值返回的是一个元组，分别表示最大值及其下标。因此获取其下标并传递给cpu最后以numpy的形式返回
             action = action[0]
+            # action = torch.argmax(actions_value).item()
 
         return action
 
@@ -108,18 +109,19 @@ class DQN:
 
 def play():
     env = gym.make("CartPole-v1", render_mode="human")
+    env = env.unwrapped
     for i in range(500):
         state, _ = env.reset()
         done = False
         while not done:
             action = dqn.choose_action(state)
             s_prime, r, done, _, _ = env.step(action)
-            s = s_prime
+            state = s_prime
 
 
 if __name__ == '__main__':
     dqn = DQN()
-    rounds = 50000
+    rounds = 260
     # plt.axis([0, 500, 0, 10])
     # plt.ion()
     for i in range(rounds):
@@ -135,8 +137,7 @@ if __name__ == '__main__':
 
             x, x_dot, theta, theta_dot = s_prime
             r1 = (env.x_threshold - abs(x)) / env.x_threshold - 0.8
-            r2 = (env.theta_threshold_radians - abs(
-                theta)) / env.theta_threshold_radians - 0.5
+            r2 = (env.theta_threshold_radians - abs(theta)) / env.theta_threshold_radians - 0.5
             r = r1 + r2
 
             dqn.store_transition(state, action, r, s_prime)
@@ -149,12 +150,9 @@ if __name__ == '__main__':
 
             if done:
                 break
-
-            s = s_prime
+            state = s_prime
         if EPSILON > 0.05:
             EPSILON *= 0.99
-        else:
-            print("fuck")
         # plot_x_data.append(i)
         # plot_y_data.append(episode_reward)
         # plt.plot(plot_x_data, plot_y_data)
