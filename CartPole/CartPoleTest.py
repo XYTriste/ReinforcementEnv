@@ -16,10 +16,11 @@ GAMMA = 0.95
 TARGET_REPLACE_ITER = 100  # 目标网络的更新速率，100指的是每更新当前网络100次则更新一次目标网络
 MEMORY_CAPACITY = 2000
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-torch.FloatTensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor  # 如果有GPU和cuda
-# ，数据将转移到GPU执行
-torch.LongTensor = torch.cuda.LongTensor if torch.cuda.is_available() else torch.LongTensor
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cpu")
+# torch.FloatTensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor  # 如果有GPU和cuda
+# # ，数据将转移到GPU执行
+# torch.LongTensor = torch.cuda.LongTensor if torch.cuda.is_available() else torch.LongTensor
 
 
 class MyNet(nn.Module):
@@ -108,6 +109,9 @@ class DQN:
 
 
 def play():
+    global EPSILON
+    EPSILON = 0
+
     env = gym.make("CartPole-v1", render_mode="human")
     env = env.unwrapped
     for i in range(500):
