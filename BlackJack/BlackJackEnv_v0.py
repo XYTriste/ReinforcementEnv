@@ -1,3 +1,35 @@
+"""
+### Description
+    Card Values:
+
+    - Face cards (Jack, Queen, King) have a point value of 10.
+    - Aces can either count as 11 (called a 'usable ace') or 1.
+    - Numerical cards (2-9) have a value equal to their number.
+
+    This game is played with an infinite deck (or with replacement).
+    The game starts with the dealer having one face up and one face down card,
+    while the player has two face up cards.
+
+    The player can request additional cards (hit, action=1) until they decide to stop (stick, action=0)
+    or exceed 21 (bust, immediate loss).
+    After the player sticks, the dealer reveals their facedown card, and draws
+    until their sum is 17 or greater.  If the dealer goes bust, the player wins.
+    If neither the player nor the dealer busts, the outcome (win, lose, draw) is
+    decided by whose sum is closer to 21.
+
+    ### Action Space
+    There are two actions: stick (0), and hit (1).
+
+    ### Observation Space
+    The observation consists of a 3-tuple containing: the player's current sum,
+    the value of the dealer's one showing card (1-10 where 1 is ace),
+    and whether the player holds a usable ace (0 or 1).
+
+    ### Rewards
+    - win game: +1
+    - lose game: -1
+    - draw game: 0
+"""
 from typing import Optional, Union, List, Tuple
 
 import gym
