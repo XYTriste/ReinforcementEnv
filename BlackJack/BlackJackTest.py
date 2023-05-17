@@ -1,4 +1,4 @@
-from BlackJackEnv import *
+from BlackJackEnv_v1 import *
 from BlackJackAgent import *
 
 env = BlackJackEnvironment()
