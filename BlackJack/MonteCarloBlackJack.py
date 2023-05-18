@@ -48,6 +48,14 @@ def epsilon_greedy_policy(player_state, epsilon=0.1):
         Q_state = Q[player_state]
         return np.argmax(Q_state)
 
+def player_policy(player_state):
+    global win_count
+    global lose_count
+    curr_win_rate = win_count[player_state] / (win_count[player_state] + lose_count[player_state])
+    if curr_win_rate < 0.5:
+        return 1
+    else:
+        return np.argmax(Q[player_state])
 
 def monte_carlo():
     global epsilon
@@ -62,7 +70,7 @@ def monte_carlo():
         if i > 0 and i % percent == 0:
             print("训练完了 {} 回合, 玩家赢了: {} 回合   庄家赢了: {} 回合".format(i, player_win, dealer_win))
             process_bar(rounds, i)
-            play_with_dealer(10000, i)
+            # play_with_dealer(10000, i)
 
         obs, _ = env.reset()
         player_state, dealer_state, usable_ace = obs
@@ -125,7 +133,7 @@ def play_with_dealer(rounds, trained_rounds):
         obs, _ = env.reset()
         player_state, dealer_state, _ = obs
         while not done:
-            action = greedy_policy(player_state)
+            action = player_policy(player_state)
             observation, reward, done, _, _ = env.step(action)
             player_state = observation[0]
 
@@ -140,12 +148,12 @@ def play_with_dealer(rounds, trained_rounds):
 
 if __name__ == '__main__':
     monte_carlo()
-
-    for i in range(4, 22):
-        for j in range(2):
-            print("状态 {} 时, 行为 {} 的行为价值为:{}".format(i, "不抽牌" if j == 0 else "抽牌", Q[i, j]))
-        print("{} 更好".format("抽牌" if Q[i, 1] > Q[i, 0] else "不抽牌"))
-        print()
+    play_with_dealer(10000, 50000)
+    # for i in range(4, 22):
+    #     for j in range(2):
+    #         print("状态 {} 时, 行为 {} 的行为价值为:{}".format(i, "不抽牌" if j == 0 else "抽牌", Q[i, j]))
+    #     print("{} 更好".format("抽牌" if Q[i, 1] > Q[i, 0] else "不抽牌"))
+    #     print()
 
     for i in range(1, 32):
         print("Player State:{}   win rate:{}   lose rate:{}".format(i, win_count[i] / (win_count[i] + lose_count[i]), lose_count[i] / (win_count[i] + lose_count[i])))

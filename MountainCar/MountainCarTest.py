@@ -9,8 +9,12 @@ import torch.nn.functional as F
 import numpy as np
 import gym
 
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-device = torch.device("cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+torch.FloatTensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor  # 如果有GPU和cuda
+# ，数据将转移到GPU执行
+torch.LongTensor = torch.cuda.LongTensor if torch.cuda.is_available() else torch.LongTensor
+# device = torch.device("cpu")
+
 
 class Agent:
     def __init__(self, N_STATES, N_ACTIONS):
@@ -127,7 +131,7 @@ if __name__ == '__main__':
                 if s_prime[0] > 0.5:
                     r = 5
             else:
-                r = -1
+                r = 0
 
             DQNAgent.store_transition(state, action, r, s_prime)
 
