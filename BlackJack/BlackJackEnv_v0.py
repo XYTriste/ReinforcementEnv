@@ -43,7 +43,7 @@ def cmp(a, b):
 
 def draw_card(np_random, deck):
     card = np_random.choice(deck)
-    deck.remove(card)
+    # deck.remove(card)
     return int(card)
 
 
