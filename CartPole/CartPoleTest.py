@@ -16,11 +16,11 @@ GAMMA = 0.95
 TARGET_REPLACE_ITER = 100  # 目标网络的更新速率，100指的是每更新当前网络100次则更新一次目标网络
 MEMORY_CAPACITY = 2000
 
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-device = torch.device("cpu")
-# torch.FloatTensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor  # 如果有GPU和cuda
-# # ，数据将转移到GPU执行
-# torch.LongTensor = torch.cuda.LongTensor if torch.cuda.is_available() else torch.LongTensor
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# device = torch.device("cpu")
+torch.FloatTensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor  # 如果有GPU和cuda
+# ，数据将转移到GPU执行
+torch.LongTensor = torch.cuda.LongTensor if torch.cuda.is_available() else torch.LongTensor
 
 
 class MyNet(nn.Module):
@@ -107,6 +107,8 @@ class DQN:
             param.grad.data.clamp_(-1, 1)
         self.optimizer.step()  # 更新参数
 
+        return loss.item()
+
 
 def play():
     global EPSILON
@@ -131,6 +133,7 @@ if __name__ == '__main__':
     for i in range(rounds):
         state, _ = env.reset()
         episode_reward = 0
+        episode_DQN_loss = 0
 
         if i % 100 == 0:
             print("Process training: {}%".format(i / rounds * 100))
@@ -148,8 +151,9 @@ if __name__ == '__main__':
 
             episode_reward += r
             if dqn.memory_counter > MEMORY_CAPACITY:
-                dqn.learn()
+                episode_DQN_loss += dqn.learn()
                 if done:
+                    print("DQN Loss:{}".format(episode_DQN_loss))
                     print('Episode: ', i, '| Episode_reward: ', round(episode_reward, 2))
 
             if done:
