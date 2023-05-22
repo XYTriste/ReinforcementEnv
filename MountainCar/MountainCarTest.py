@@ -3,13 +3,17 @@
 # Author: Yu Xia
 # @File: MountainCarTest.py
 # @software: PyCharm
+import random
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-import gym
+import gymnasium as gym
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from collections import namedtuple
+from collections import deque
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 torch.FloatTensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor  # 如果有GPU和cuda
@@ -30,17 +34,18 @@ class Agent:
 class Net(nn.Module):
     def __init__(self, INPUT_DIM, OUTPUT_DIM):
         super(Net, self).__init__()
-        self.fc1 = nn.Linear(INPUT_DIM, 128)
-        # self.fc1.weight.data.normal_(0, 0.1)
-        self.fc2 = nn.Linear(128, 128)
-        # self.fc2.weight.data.normal_(0, 0.1)
-        self.out = nn.Linear(128, OUTPUT_DIM)
-        # self.out.weight.data.normal_(0, 0.1)
+        self.network = nn.Sequential(
+            nn.Linear(INPUT_DIM, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, OUTPUT_DIM)
+        )
 
     def forward(self, state):
-        state = F.relu(self.fc1(state))
-        state = F.relu(self.fc2(state))
-        actions_value = self.out(state)
+        actions_value = self.network(state)
 
         return actions_value
 
@@ -49,22 +54,22 @@ class RNDNet(nn.Module):
     def __init__(self, INPUT_DIM, OUTPUT_DIM):
         super(RNDNet, self).__init__()
         self.predictor = nn.Sequential(
-            nn.Linear(INPUT_DIM, 128),
+            nn.Linear(INPUT_DIM, 32),
             nn.ReLU(),
-            nn.Linear(128, 128),
+            nn.Linear(32, 32),
             nn.ReLU(),
-            nn.Linear(128, OUTPUT_DIM)
+            nn.Linear(32, OUTPUT_DIM)
         )
 
         self.target = nn.Sequential(
-            nn.Linear(INPUT_DIM, 128),
+            nn.Linear(INPUT_DIM, 32),
             nn.ReLU(),
-            nn.Linear(128, 128),
+            nn.Linear(32, 32),
             nn.ReLU(),
-            nn.Linear(128, OUTPUT_DIM)
+            nn.Linear(32, OUTPUT_DIM)
         )
 
-        self.LR = 0.01
+        self.LR = 0.001
         self.optimizer = torch.optim.Adam(self.predictor.parameters(), lr=self.LR)
         self.loss_func = nn.MSELoss()
 
@@ -94,8 +99,8 @@ class RNDNet(nn.Module):
         if self.normalize_min_error == self.normalize_max_error:
             self.normalize_min_error = self.normalize_max_error - 1E-3
         normalize_val = (predict_error - self.normalize_min_error) / (
-                    self.normalize_max_error - self.normalize_min_error)
-        normalize_val = normalize_val * 0.1 + 0.1
+                self.normalize_max_error - self.normalize_min_error)
+        normalize_val = normalize_val * 0.2 + 0.2
 
         return normalize_val
 
@@ -104,10 +109,10 @@ class DQN:
     def __init__(self, agent: Agent):
         self.main_net, self.target_net = Net(2, 3).to(device), Net(2, 3).to(device)
         self.target_net.load_state_dict(self.main_net.state_dict())
-        self.target_net.eval()
+        # self.target_net.eval()
 
         self.BATCH_SIZE = 32
-        self.LR = 0.01
+        self.LR = 0.002
         self.EPSILON = 0.9
         self.GAMMA = 0.99
         self.TARGET_REPLACE_ITER = 100
@@ -115,12 +120,16 @@ class DQN:
         self.agent = agent
         self.EVERY_MEMORY_SIZE = agent.N_STATES * 2 + 2
         self.EVERY_MEMORY_SHAPE = (agent.N_STATES, 1, 1, agent.N_STATES)
+        self.Q_targets = 0.0
 
         self.learn_step_counter = 0
         self.memory_counter = 0
-        self.memory = np.zeros((self.MEMORY_CAPACITY, self.EVERY_MEMORY_SIZE))
+        # self.memory = deque(maxlen=self.MEMORY_CAPACITY)
+        self.memory = np.zeros((self.MEMORY_CAPACITY, self.agent.N_STATES * 2 + 3))
+        self.experience = namedtuple("Experience", field_names=["state", "action", "reward", "next_state", "done"])
         self.optimizer = torch.optim.Adam(self.main_net.parameters(), lr=self.LR)
         self.loss_func = nn.MSELoss()
+        self.huber_loss_func = nn.SmoothL1Loss()
 
     @torch.no_grad()
     def epsilon_greedy_policy(self, state):
@@ -142,13 +151,18 @@ class DQN:
         action = action[0]
         return action
 
-    def store_transition(self, s, a, r, s_prime):
-        transition = np.hstack((s, [a, r], s_prime))
+    def store_transition(self, s, a, r, s_prime, done):
+        transition = np.hstack((s, [a, r], s_prime, [done]))
         index = self.memory_counter % self.MEMORY_CAPACITY
         self.memory[index, :] = transition
         self.memory_counter += 1
+        # e = self.experience(s, a, r, s_prime, done)
+        # self.memory.append(e)
+        # self.memory_counter += 1
 
     def learn(self):
+        if len(self.memory) < self.BATCH_SIZE:
+            return 0
         if self.learn_step_counter % self.TARGET_REPLACE_ITER == 0:
             self.target_net.load_state_dict(self.main_net.state_dict())
         self.learn_step_counter += 1
@@ -159,14 +173,25 @@ class DQN:
         batch_a = torch.LongTensor(
             batch_memory[:, self.EVERY_MEMORY_SHAPE[0]: self.EVERY_MEMORY_SHAPE[0] + 1].astype(int))
         batch_r = torch.FloatTensor(batch_memory[:, self.EVERY_MEMORY_SHAPE[0] + 1: self.EVERY_MEMORY_SHAPE[0] + 2])
-        batch_s_prime = torch.FloatTensor(batch_memory[:, -self.EVERY_MEMORY_SHAPE[0]:])
+        batch_s_prime = torch.FloatTensor(
+            batch_memory[:, self.EVERY_MEMORY_SHAPE[0] + 2: self.EVERY_MEMORY_SHAPE[0] + 4])
+        batch_done = torch.LongTensor(batch_memory[:, -1:])
+
+        # samples = random.sample(self.memory, k=self.BATCH_SIZE)
+        # batch_s = torch.from_numpy(np.vstack([e.state for e in samples if e is not None])).float().to(device)
+        # batch_a = torch.from_numpy(np.vstack([e.action for e in samples if e is not None])).long().to(device)
+        # batch_r = torch.from_numpy(np.vstack([e.reward for e in samples if e is not None])).float().to(
+        #     device)
+        # batch_s_prime = torch.from_numpy(np.vstack([e.next_state for e in samples if e is not None])).float().to(device)
+        # batch_done = torch.from_numpy(np.vstack([e.done for e in samples if e is not None])).long().to(
+        #     device)
 
         q = self.main_net(batch_s).gather(1, batch_a)
         q_target = self.target_net(batch_s_prime).detach()
 
-        y = batch_r + self.GAMMA * q_target.max(1)[0].view(self.BATCH_SIZE, 1)
+        y = batch_r + self.GAMMA * q_target.max(1)[0].view(self.BATCH_SIZE, 1) * (1 - batch_done)
 
-        loss = self.loss_func(q, y)
+        loss = self.huber_loss_func(q, y)
 
         self.optimizer.zero_grad()
         loss.backward()
@@ -230,7 +255,7 @@ if __name__ == '__main__':
     painter = Painter()
 
     flag = False
-    rounds = 20
+    rounds = 1000
     data_iterator = tqdm(range(rounds), colour="green")
 
     for i in data_iterator:
@@ -241,6 +266,10 @@ if __name__ == '__main__':
         episode_intrinsic_reward = 0
         episode_predict_error = 0
         episode_DQN_loss = 0
+        episode_learn_count = 0  # 每回合DQN算法学习的次数
+
+        test_rounds = []
+        test_mean_reward = []
 
         done = False
         while not done:
@@ -250,7 +279,7 @@ if __name__ == '__main__':
 
             s_prime, external_reward, done, _, _, = env.step(action)
 
-            external_reward = (s_prime[0] - state[0]) + (s_prime[1] ** 2 - state[1] ** 2)
+            # external_reward = (s_prime[0] - state[0]) + (s_prime[1] ** 2 - state[1] ** 2)
 
             # if s_prime[0] > -0.5:
             #     external_reward = s_prime[0] + 0.5
@@ -261,39 +290,49 @@ if __name__ == '__main__':
 
             # external_reward = 100 * (0.5 - abs(state[0])) - 10 * abs(state[1])
             # predict, target = RNDNetWork(torch.from_numpy(state))
-            # # predict_error = np.linalg.norm(target - predict)
+            # predict_error = np.linalg.norm(target - predict)
             # predict_error = RNDNetWork.update_parameters(predict, target)
             # normalize_val = RNDNetWork.normalize_error(predict_error.item())
             # episode_predict_error += normalize_val
-
-            r = external_reward  # + normalize_val
-            DQNAgent.store_transition(state, action, r, s_prime)
+            #
+            # r = external_reward + normalize_val
+            # r = (-external_reward) * predict_error.item()
+            r = external_reward if not done else 0
+            DQNAgent.store_transition(state, action, r, s_prime, done)
 
             episode_reward += r
             episode_external_reward += external_reward
+            # episode_intrinsic_reward +=
             # episode_intrinsic_reward += normalize_val
 
-            if DQNAgent.memory_counter > DQNAgent.MEMORY_CAPACITY:
-                episode_DQN_loss += DQNAgent.learn()
+            # if DQNAgent.memory_counter > DQNAgent.MEMORY_CAPACITY:
+            episode_learn_count += 1
+            episode_DQN_loss += DQNAgent.learn()
 
-                if done:
-                    recorder.episodes.append(i)
-                    recorder.time_steps.append(time_step)
-                    recorder.episode_rewards.append(episode_reward)
-                    recorder.predict_errors.append(episode_predict_error)
-                    recorder.DQNLoss.append(episode_DQN_loss)
-                    # painter.add_data(time_step, episode_reward)
-                    # print('Episode: ', i,'| Episode_reward: ', round(episode_reward, 2))
-                    print("Episode: {}, Episode reward:{}, external reward:{},   intrinsic reward:{}".format(i,
-                                                                                                             episode_reward,
-                                                                                                             episode_external_reward,
-                                                                                                             episode_intrinsic_reward))
             state = s_prime
+            if done:
+                recorder.episodes.append(i)
+                recorder.time_steps.append(time_step)
+                recorder.episode_rewards.append(episode_reward)
+                recorder.predict_errors.append(episode_predict_error)
+                recorder.DQNLoss.append(episode_DQN_loss / episode_learn_count)
+                # painter.add_data(time_step, episode_reward)
+                # print('Episode: ', i,'| Episode_reward: ', round(episode_reward, 2))
+                print(
+                    "Episode: {}, Episode reward:{}, external reward:{},   intrinsic reward:{}.   episode DQN "
+                    "mean loss:{}".format(
+                        i,
+                        episode_reward,
+                        episode_external_reward,
+                        episode_intrinsic_reward,
+                        episode_DQN_loss / episode_learn_count))
 
         if DQNAgent.EPSILON > 0.01:
             DQNAgent.EPSILON *= 0.99
         if i > 0 and i % 50 == 0:
+            test_rounds.append(i)
             mean_reward = run_evaluate_episodes(DQNAgent)
+            test_mean_reward.append(mean_reward)
             print("Episode:{}   epsilon:{}   Mean reward:{}".format(i, DQNAgent.EPSILON, mean_reward))
 
         # if not flag and i > 50:
@@ -303,8 +342,10 @@ if __name__ == '__main__':
         #     env.render()
 
     data_iterator.close()
-    plt.plot(recorder.episodes, recorder.DQNLoss, label="DQN Loss")
-    plt.plot(recorder.episodes, recorder.episode_rewards, label="Episode rewards")
+    # plt.plot(recorder.episodes, recorder.DQNLoss, label="DQN Loss")
+    # plt.plot(recorder.episodes, recorder.episode_rewards, label="Episode rewards")
+    plt.plot(test_rounds, test_mean_reward, label="Average reward pre 5 rounds")
+    plt.legend()
     # plt.plot(recorder.episodes, recorder.predict_errors, label="predict_error")
     plt.xlabel('Episodes')
     plt.show()

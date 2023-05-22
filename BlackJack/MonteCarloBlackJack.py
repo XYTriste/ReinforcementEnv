@@ -70,7 +70,7 @@ def monte_carlo():
         if i > 0 and i % percent == 0:
             print("训练完了 {} 回合, 玩家赢了: {} 回合   庄家赢了: {} 回合".format(i, player_win, dealer_win))
             process_bar(rounds, i)
-            # play_with_dealer(10000, i)
+            play_with_dealer(10000, i)
 
         obs, _ = env.reset()
         player_state, dealer_state, usable_ace = obs
