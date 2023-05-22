@@ -203,3 +203,4 @@ if __name__ == '__main__':
     model = DQN(args, args.epsilon)
     model.init_model()  # 初始化
     rt_1 = model.run()
+    plt.show()

@@ -273,10 +273,17 @@ if __name__ == '__main__':
     test_rounds = []
     test_mean_reward = []
     learn_step = 0  # DQN经验回放频率计数
+
+    reward_weight = 0.6
+
+    random.seed(21)
+    np.random.seed(21)
+    torch.manual_seed(21)
+
     for i in range(10):
         with tqdm(total=int(rounds / 10), desc=f'Iteration {i}') as pbar:
             for episode in range(rounds // 10):
-                state, _ = env.reset()
+                state, _ = env.reset(seed=21)
                 episode_reward = 0
                 time_step = 0
 
@@ -304,20 +311,20 @@ if __name__ == '__main__':
                     #     external_reward = 0
 
                     # external_reward = 100 * (0.5 - abs(state[0])) - 10 * abs(state[1])
-                    predict, target = RNDNetWork(torch.from_numpy(state))
-                    predict_error = np.linalg.norm(target - predict)
-                    predict_error = RNDNetWork.update_parameters(predict, target)
-                    normalize_val = RNDNetWork.normalize_error(predict_error.item())
+                    # predict, target = RNDNetWork(torch.from_numpy(state))
+                    # # predict_error = np.linalg.norm(target - predict)
+                    # predict_error = RNDNetWork.update_parameters(predict, target)
+                    # normalize_val = RNDNetWork.normalize_error(predict_error.item())
                     # episode_predict_error += normalize_val
                     #
                     # r = external_reward + normalize_val
                     # r = (-external_reward) * predict_error.item()
-                    r = external_reward if not done else 0 + normalize_val
+                    # r = (1 - reward_weight) * (external_reward if not done else 0) + reward_weight * normalize_val
+                    r = external_reward if not done else 0
                     DQNAgent.store_transition(state, action, r, s_prime, done)
 
-                    episode_reward += r
+                    episode_reward += external_reward
                     episode_external_reward += external_reward
-                    # episode_intrinsic_reward +=
                     # episode_intrinsic_reward += normalize_val
                     state = s_prime
                     learn_step += 1
@@ -352,11 +359,11 @@ if __name__ == '__main__':
                     )
                 pbar.update(1)
 
-                # if i > 0 and i % 50 == 0:
-                #     test_rounds.append(i)
-                #     mean_reward = run_evaluate_episodes(DQNAgent)
-                #     test_mean_reward.append(mean_reward)
-                #     print("Episode:{}   epsilon:{}   Mean reward:{}".format(i, DQNAgent.EPSILON, mean_reward))
+                if episode > 0 and episode % 50 == 0:
+                    test_rounds.append(episode * (i + 1))
+                    mean_reward = run_evaluate_episodes(DQNAgent)
+                    test_mean_reward.append(mean_reward)
+                    print("Episode:{}   epsilon:{}   Mean reward:{}".format(i, DQNAgent.EPSILON, mean_reward))
 
         # if not flag and i > 50:
         #     env = gym.make("MountainCar-v0", render_mode="human")
@@ -370,4 +377,4 @@ if __name__ == '__main__':
     # plt.legend()
     # plt.plot(recorder.episodes, recorder.predict_errors, label="predict_error")
     # plt.xlabel('Episodes')
-    # plt.show()
+    plt.show()
