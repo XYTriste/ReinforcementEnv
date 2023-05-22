@@ -11,7 +11,7 @@ N_STATES = env.observation_space.shape[0]
 
 BATCH_SIZE = 32
 LR = 0.01
-EPSILON = 0.5
+EPSILON = 0.1
 GAMMA = 0.95
 TARGET_REPLACE_ITER = 100  # 目标网络的更新速率，100指的是每更新当前网络100次则更新一次目标网络
 MEMORY_CAPACITY = 2000

@@ -48,6 +48,7 @@ def epsilon_greedy_policy(player_state, epsilon=0.1):
         Q_state = Q[player_state]
         return np.argmax(Q_state)
 
+
 def player_policy(player_state):
     global win_count
     global lose_count
@@ -57,13 +58,19 @@ def player_policy(player_state):
     else:
         return np.argmax(Q[player_state])
 
+
 def monte_carlo():
     global epsilon
     initialization_training_data()
     player_win = 0
     dealer_win = 0
 
-    rounds = 50000
+    rounds = 500000
+    ALPHA = 0.002
+    average_step = (1 - ALPHA) / rounds
+
+    visited_state = set()
+
     for i in range(rounds):
 
         percent = rounds / 20
@@ -99,25 +106,43 @@ def monte_carlo():
             player_win += 1
         elif episode[-1][-1] < 0:
             dealer_win += 1
-        G = 0
-        returns = []
-        for t in range(len(episode) - 1, -1, -1):
-            G = episode[t][2] + gamma * G
-            returns = [G] + returns
-
-        visited_set = set()
-        index = 0
-        for state, action, reward in episode:
-            if (state, action) not in visited_set:
-                visited_set.add((state, action))
-                V_N[state, dealer_state] += 1
-                alpha = 1.0 / V_N[state, dealer_state]
-                V[state, dealer_state] += alpha * (returns[index] - V[state, dealer_state])
-
-                Q_N[state, action] += 1
-                alpha = 1.0 / Q_N[state, action]
-                Q[state, action] += alpha * (returns[index] - Q[state, action])
-            index += 1
+        # G = 0
+        # returns = []
+        # for t in range(len(episode) - 1, -1, -1):
+        #     G = episode[t][2] + gamma * G
+        #     returns = [G] + returns
+        #
+        # visited_set = set()
+        # index = 0
+        #
+        # update_alpha = ALPHA
+        # ALPHA += average_step
+        # for state, action, reward in episode:
+        #     if (state, action) not in visited_set:
+        #         visited_set.add((state, action))
+        #         V_N[state, dealer_state] += 1
+        #         alpha = 1.0 / V_N[state, dealer_state]
+        #         V[state, dealer_state] += alpha * (returns[index] - V[state, dealer_state])
+        #
+        #         # Q_N[state, action] += 1
+        #         # alpha = 1.0 / Q_N[state, action]
+        #         # Q[state, action] += update_alpha * (returns[index] - Q[state, action])
+        #
+        #         if state in visited_state:
+        #             Q[state, action] += (1 - ALPHA) * (returns[index] - Q[state, action])
+        #         else:
+        #             visited_state.add(state)
+        #             Q[state][action] = ALPHA * returns[index]
+        #     index += 1
+        returns = 0
+        for state, action, reward in reversed(episode):
+            returns = gamma * returns + reward
+            if state in visited_state:
+                Q[state, action] = (1 - ALPHA) * Q[state, action] + ALPHA * returns
+            else:
+                visited_state.add(state)
+                Q[state, :] = 0
+                Q[state, action] = ALPHA * returns
 
 
 def play_with_dealer(rounds, trained_rounds):
@@ -156,4 +181,5 @@ if __name__ == '__main__':
     #     print()
 
     for i in range(1, 32):
-        print("Player State:{}   win rate:{}   lose rate:{}".format(i, win_count[i] / (win_count[i] + lose_count[i]), lose_count[i] / (win_count[i] + lose_count[i])))
+        print("Player State:{}   win rate:{}   lose rate:{}".format(i, win_count[i] / (win_count[i] + lose_count[i]),
+                                                                    lose_count[i] / (win_count[i] + lose_count[i])))
