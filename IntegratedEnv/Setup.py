@@ -13,9 +13,16 @@ if __name__ == "__main__":
     args = SetupArgs().get_args()
 
     env = gym.make(args.env_name, render_mode="rgb_array")
-    dqn = DQN(args)
+    dqn_first = DQN(args)
+    dqn_second = DQN(args)
 
-    agent = Agent(args, env, dqn)
-    agent.train()
+    dqn_second.main_net.load_state_dict(dqn_first.main_net.state_dict())
+    dqn_second.target_net.load_state_dict(dqn_first.target_net.state_dict())
+
+    agent_useRnd = Agent(args, env, dqn_first)
+    agent_unuseRnd = Agent(args, env, dqn_second)
+
+    agent_useRnd.train()
+    agent_unuseRnd.train(False)
 
     plt.show()

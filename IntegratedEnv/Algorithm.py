@@ -60,7 +60,7 @@ class DQN:
         self.memory_counter += 1
 
     def step(self, s, a, r, s_prime, done) -> float:
-        if self.epsilon > 0.1:
+        if self.epsilon > 0.01:
             self.epsilon *= 0.99
 
         self.store_transition(s, a, r, s_prime, done)
@@ -100,3 +100,4 @@ class DQN:
         self.optimizer.step()
 
         return loss.item()
+
