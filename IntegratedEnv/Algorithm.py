@@ -11,7 +11,8 @@ from Tools import *
 
 
 class DQN:
-    def __init__(self, args: SetupArgs, INPUT_DIM=2, HIDDEN_DIM=128, OUTPUT_DIM=3, HIDDEN_DIM_NUM=3, SIZEOF_EVERY_MEMORY=7):
+    def __init__(self, args: SetupArgs, INPUT_DIM=2, HIDDEN_DIM=128, OUTPUT_DIM=3, HIDDEN_DIM_NUM=3,
+                 SIZEOF_EVERY_MEMORY=7):
         self.NAME = "DQN"
         self.args = args
 
@@ -109,11 +110,15 @@ class Actor_Critic:
 
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        self.actor = Policy_Net(3, 64, 2, 1).to(self.device)
-        self.critic = DQN(args, 3, 64, 2, 1, 9)
+        self.actor = Actor(3, 128, 2).to(self.device)
+        self.critic = Critic(3, 128, 2).to(self.device)
+        self.gamma = self.args.gamma
         self.LR = self.args.lr
 
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=self.LR)
+        self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=self.LR)
+
+        self.critic_loss_func = nn.MSELoss()
 
     def select_action(self, state) -> int:
         state = torch.tensor(state, dtype=torch.float).to(self.device)
@@ -121,23 +126,29 @@ class Actor_Critic:
         action = torch.multinomial(action_probs, num_samples=1).item()
         return action
 
-    def update(self, state, action: int,  reward: float, next_state, done: bool):
-        self.critic.step(state, action, reward, next_state, done)
-
+    def update(self, state, action: int, reward: float, next_state, done: bool):
         state = torch.tensor(state, dtype=torch.float).to(self.device)
         next_state = torch.tensor(next_state, dtype=torch.float).to(self.device)
+        action = torch.tensor(action, dtype=torch.long).unsqueeze(0).to(self.device)
+        reward = torch.tensor(reward, dtype=torch.float).unsqueeze(0).to(self.device)
 
-        state_value = self.critic.target_net(state)[action]
-        next_state_value = torch.max(self.critic.target_net(next_state)).item()
+        # Compute TD error
+        state_value = self.critic(state).squeeze(0)[action]
+        next_state_value = self.critic(next_state).squeeze(0).max()
         td_error = reward + self.args.gamma * next_state_value - state_value
 
-        action_prob = self.actor(state)[action]
-        actor_loss = -torch.log(action_prob) * td_error
+        # Update critic network
+        self.critic_optimizer.zero_grad()
+        critic_loss = self.critic_loss_func(state_value, reward + self.args.gamma * next_state_value)
+        critic_loss.backward()
+        self.critic_optimizer.step()
 
+        # Update actor network
         self.actor_optimizer.zero_grad()
-
+        action_probs = self.actor(state)
+        log_prob = torch.log(action_probs.squeeze(0)[action])
+        actor_loss = -log_prob * td_error.item()
         actor_loss.backward()
-
         self.actor_optimizer.step()
 
         return actor_loss.item()

@@ -26,6 +26,10 @@ class Agent:
         return_list = []
         average_loss = []
 
+        player_win = 0
+        dealer_win = 0
+        rounds = 0
+
         for i in range(10):
             Iteration_reward = []
             with tqdm(total=int(num_episodes / 10), desc=f"Iteration {i}") as pbar:
@@ -36,6 +40,7 @@ class Agent:
                     done = False
 
                     episode_reward = 0
+                    rounds += 1
 
                     while not done:
                         action = self.algorithm.select_action(state)
@@ -61,8 +66,12 @@ class Agent:
                         time_step += 1
                         average_loss.append(loss)
 
-                        # if done:
-                        #     print("Player state:{}   Dealer state:{}".format(s_prime[0], s_prime[1]))
+                        if done:
+                            if reward >= 0:
+                                player_win += 1
+                            else:
+                                dealer_win += 1
+                            # print("Player state:{}   Dealer state:{}".format(s_prime[0], s_prime[1]))
 
                     return_list.append(episode_reward)
                     Iteration_reward.append(episode_reward)
@@ -76,6 +85,8 @@ class Agent:
                                 "return of last 10 rounds": f"{np.mean(return_list[-10:]):3f}",
                                 "Iteration average reward:": f"{np.mean(Iteration_reward):3f}",
                                 "loss of last 10 rounds": f"{np.mean(average_loss[-10:]):9f}",
+                                "Player win rate": f"{(player_win / rounds):3f}",
+                                "Dealer win rate": f"{(dealer_win / rounds):3f}"
                             }
                         )
                     pbar.update(1)
@@ -96,8 +107,8 @@ class Agent:
                                              self.algorithm.NAME,
                                              "blue")
             plt.legend()
-            self.painter.plot_episode_reward(return_list, 2,
-                                             "{} on {}".format(self.algorithm.NAME, self.args.env_name),
-                                             self.algorithm.NAME,
-                                             "blue")
+            # self.painter.plot_episode_reward(return_list, 2,
+            #                                  "{} on {}".format(self.algorithm.NAME, self.args.env_name),
+            #                                  self.algorithm.NAME,
+            #                                  "blue")
         plt.legend()

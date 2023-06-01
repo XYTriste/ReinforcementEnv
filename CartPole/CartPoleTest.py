@@ -5,13 +5,13 @@ import numpy as np
 import gym
 import matplotlib.pyplot as plt
 
-env = gym.make("CartPole-v1", render_mode="rgb_array")
+env = gym.make("CartPole-v1", render_mode="rbg_array")
 N_ACTIONS = 2
 N_STATES = env.observation_space.shape[0]
 
 BATCH_SIZE = 32
 LR = 0.01
-EPSILON = 0.1
+EPSILON = 0.01
 GAMMA = 0.95
 TARGET_REPLACE_ITER = 100  # 目标网络的更新速率，100指的是每更新当前网络100次则更新一次目标网络
 MEMORY_CAPACITY = 2000
@@ -109,6 +109,18 @@ class DQN:
 
         return loss.item()
 
+    def plot_reward(self, reward_list, window, end=False):
+        plt.figure(window)
+        plt.xlabel('Episodes')
+        plt.ylabel('Returns')
+        plt.title('DQN on CartPole-v0')
+        list_t = [np.mean(reward_list[:i]) for i in range(len(reward_list))]
+        plt.plot(np.array(list_t))
+        if end:
+            plt.show()
+        else:
+            plt.pause(0.001)
+
 
 def play():
     global EPSILON
@@ -127,9 +139,10 @@ def play():
 
 if __name__ == '__main__':
     dqn = DQN()
-    rounds = 260
+    rounds = 2000
     # plt.axis([0, 500, 0, 10])
     # plt.ion()
+    return_list = []
     for i in range(rounds):
         state, _ = env.reset()
         episode_reward = 0
@@ -159,6 +172,10 @@ if __name__ == '__main__':
             if done:
                 break
             state = s_prime
+        if episode_reward >= 100:
+            env = gym.make("CartPole-v1", render_mode="human")
+        return_list.append(episode_reward)
+        dqn.plot_reward(return_list, 1)
         if EPSILON > 0.05:
             EPSILON *= 0.99
         # plot_x_data.append(i)
@@ -168,5 +185,5 @@ if __name__ == '__main__':
     #     plt.scatter(i, episode_reward)
     #     plt.pause(0.1)
     # plt.ioff()
-    # plt.show()
-    play()
+    plt.show()
+    # play()

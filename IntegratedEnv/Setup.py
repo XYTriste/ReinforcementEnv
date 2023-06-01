@@ -32,7 +32,7 @@ def mountaincar_DQN():
 def blackjack_actor_critic():
     args = SetupArgs().get_args()
     args.env_name = "Blackjack-v1"
-    args.num_episodes = 20000
+    args.num_episodes = 200000
 
     env = gym.make(args.env_name, render_mode="rgb_array")
 
