@@ -24,19 +24,20 @@ class Agent:
         RND_WEIGHT = 0.4
         num_episodes = self.args.num_episodes
         return_list = []
+        average_loss = []
 
         for i in range(10):
             Iteration_reward = []
             with tqdm(total=int(num_episodes / 10), desc=f"Iteration {i}") as pbar:
                 for episode in range(num_episodes // 10):
-                    state, _ = self.env.reset(seed=self.args.seed)
+                    state, _ = self.env.reset()
 
                     time_step = 0
                     done = False
 
                     episode_reward = 0
 
-                    while not done and time_step < 200:
+                    while not done:
                         action = self.algorithm.select_action(state)
 
                         s_prime, reward, done, _, _ = self.env.step(action)
@@ -58,6 +59,10 @@ class Agent:
                         state = s_prime
 
                         time_step += 1
+                        average_loss.append(loss)
+
+                        # if done:
+                        #     print("Player state:{}   Dealer state:{}".format(s_prime[0], s_prime[1]))
 
                     return_list.append(episode_reward)
                     Iteration_reward.append(episode_reward)
@@ -69,7 +74,8 @@ class Agent:
                             {
                                 "episode": f"{num_episodes / 10 * i + episode + 1}",
                                 "return of last 10 rounds": f"{np.mean(return_list[-10:]):3f}",
-                                "Iteration average reward:": f"{np.mean(Iteration_reward):3f}"
+                                "Iteration average reward:": f"{np.mean(Iteration_reward):3f}",
+                                "loss of last 10 rounds": f"{np.mean(average_loss[-10:]):9f}",
                             }
                         )
                     pbar.update(1)
@@ -77,21 +83,21 @@ class Agent:
         if use_rnd:
             self.painter.plot_average_reward(return_list, 1,
                                              "{} on {}".format(self.algorithm.NAME, self.args.env_name),
-                                             "DQN+RND",
+                                             "{} + RND".format(self.algorithm.NAME),
                                              "red")
             plt.legend()
             self.painter.plot_episode_reward(return_list, 2,
                                              "{} on {}".format(self.algorithm.NAME, self.args.env_name),
-                                             "DQN+RND",
+                                             "{} + RND".format(self.algorithm.NAME),
                                              "red")
         else:
             self.painter.plot_average_reward(return_list, 1,
                                              "{} on {}".format(self.algorithm.NAME, self.args.env_name),
-                                             "DQN",
+                                             self.algorithm.NAME,
                                              "blue")
             plt.legend()
             self.painter.plot_episode_reward(return_list, 2,
                                              "{} on {}".format(self.algorithm.NAME, self.args.env_name),
-                                             "DQN",
+                                             self.algorithm.NAME,
                                              "blue")
         plt.legend()

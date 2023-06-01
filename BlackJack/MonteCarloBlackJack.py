@@ -69,7 +69,7 @@ def monte_carlo():
     ALPHA = 0.002
     average_step = (1 - ALPHA) / rounds
 
-    visited_state = set()
+    visited_state = set()  # 记录状态是否出现过
 
     for i in range(rounds):
 
@@ -102,7 +102,7 @@ def monte_carlo():
         if epsilon > 0.1:
             epsilon *= 0.99
 
-        if episode[-1][-1] > 0:
+        if episode[-1][-1] >= 0:
             player_win += 1
         elif episode[-1][-1] < 0:
             dealer_win += 1
@@ -158,7 +158,7 @@ def play_with_dealer(rounds, trained_rounds):
         obs, _ = env.reset()
         player_state, dealer_state, _ = obs
         while not done:
-            action = player_policy(player_state)
+            action = epsilon_greedy_policy(player_state)
             observation, reward, done, _, _ = env.step(action)
             player_state = observation[0]
 

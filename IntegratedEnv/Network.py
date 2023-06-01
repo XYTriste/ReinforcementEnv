@@ -28,6 +28,26 @@ class Net(nn.Module):
         return x
 
 
+class Policy_Net(nn.Module):
+    def __init__(self, INPUT_DIM, HIDDEN_DIM, OUTPUT_DIM, HIDDEN_LAYERS_NUM=1):
+        super(Policy_Net, self).__init__()
+        self.HIDDEN_LAYERS_NUM = HIDDEN_LAYERS_NUM
+
+        self.input_layer = nn.Linear(INPUT_DIM, HIDDEN_DIM)
+        self.hidden_layers = nn.ModuleList()
+        for i in range(HIDDEN_LAYERS_NUM):
+            layer = nn.Linear(HIDDEN_DIM, HIDDEN_DIM)
+            self.hidden_layers.append(layer)
+        self.output_layer = nn.Linear(HIDDEN_DIM, OUTPUT_DIM)
+
+    def forward(self, x):
+        x = F.relu(self.input_layer(x))
+        for hidden_layer in self.hidden_layers:
+            x = F.relu(hidden_layer(x))
+        x = F.softmax(self.output_layer(x), dim=-1)
+        return x
+
+
 class RNDNetwork(nn.Module):
     """
     该类基于随机网络蒸馏(Random Network Distillation, RND)的思想，基于预测误差给予智能体一定的内在奖励。
@@ -67,4 +87,3 @@ class RNDNetwork(nn.Module):
 
     def get_intrinsic_reward(self, predict, target):
         return self.update_parameters(predict, target)
-

@@ -11,18 +11,18 @@ from Tools import *
 
 
 class DQN:
-    def __init__(self, args: SetupArgs):
+    def __init__(self, args: SetupArgs, INPUT_DIM=2, HIDDEN_DIM=128, OUTPUT_DIM=3, HIDDEN_DIM_NUM=3, SIZEOF_EVERY_MEMORY=7):
         self.NAME = "DQN"
         self.args = args
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        self.INPUT_DIM = 2  # 输入层的大小
-        self.HIDDEN_DIM = 128  # 隐藏层的大小
-        self.OUTPUT_DIM = 3  # 输出层的大小
-        self.HIDDEN_DIM_NUM = 3  # 隐藏层的数量
-        self.SIZEOF_EVERY_MEMORY = 7  # 经验回放的样本大小，使用不同环境时应进行修改。
-        self.MEMORY_SHAPE = (2, 1, 1, 2)  # 经验回放的样本中s, a, r, s_prime所占大小，使用不同环境时应进行修改。
+        self.INPUT_DIM = INPUT_DIM  # 输入层的大小
+        self.HIDDEN_DIM = HIDDEN_DIM  # 隐藏层的大小
+        self.OUTPUT_DIM = OUTPUT_DIM  # 输出层的大小
+        self.HIDDEN_DIM_NUM = HIDDEN_DIM_NUM  # 隐藏层的数量
+        self.SIZEOF_EVERY_MEMORY = SIZEOF_EVERY_MEMORY  # 经验回放的样本大小，使用不同环境时应进行修改。
+        self.MEMORY_SHAPE = (3, 1, 1, 3)  # 经验回放的样本中s, a, r, s_prime所占大小，使用不同环境时应进行修改。
 
         self.TARGET_REPLACE_ITER = 100
         self.MEMORY_CAPACITY = 10000
@@ -83,7 +83,7 @@ class DQN:
             batch_memory[:, self.MEMORY_SHAPE[0]: self.MEMORY_SHAPE[0] + 1].astype(int)).to(self.device)
         batch_r = torch.FloatTensor(batch_memory[:, self.MEMORY_SHAPE[0] + 1: self.MEMORY_SHAPE[0] + 2]).to(self.device)
         batch_s_prime = torch.FloatTensor(
-            batch_memory[:, self.MEMORY_SHAPE[0] + 2: self.MEMORY_SHAPE[0] + 4]).to(self.device)
+            batch_memory[:, self.MEMORY_SHAPE[0] + 2: self.MEMORY_SHAPE[0] + 5]).to(self.device)
         batch_done = torch.LongTensor(batch_memory[:, -1:]).to(self.device)
 
         estimated_q = self.main_net(batch_s).gather(1, batch_a)
@@ -101,3 +101,46 @@ class DQN:
 
         return loss.item()
 
+
+class Actor_Critic:
+    def __init__(self, args: SetupArgs):
+        self.NAME = "Actor Critic"
+        self.args = args
+
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        self.actor = Policy_Net(3, 64, 2, 1).to(self.device)
+        self.critic = DQN(args, 3, 64, 2, 1, 9)
+        self.LR = self.args.lr
+
+        self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=self.LR)
+
+    def select_action(self, state) -> int:
+        state = torch.tensor(state, dtype=torch.float).to(self.device)
+        action_probs = self.actor(state)
+        action = torch.multinomial(action_probs, num_samples=1).item()
+        return action
+
+    def update(self, state, action: int,  reward: float, next_state, done: bool):
+        self.critic.step(state, action, reward, next_state, done)
+
+        state = torch.tensor(state, dtype=torch.float).to(self.device)
+        next_state = torch.tensor(next_state, dtype=torch.float).to(self.device)
+
+        state_value = self.critic.target_net(state)[action]
+        next_state_value = torch.max(self.critic.target_net(next_state)).item()
+        td_error = reward + self.args.gamma * next_state_value - state_value
+
+        action_prob = self.actor(state)[action]
+        actor_loss = -torch.log(action_prob) * td_error
+
+        self.actor_optimizer.zero_grad()
+
+        actor_loss.backward()
+
+        self.actor_optimizer.step()
+
+        return actor_loss.item()
+
+    def step(self, s, a, r, s_prime, done):
+        return self.update(s, a, r, s_prime, done)

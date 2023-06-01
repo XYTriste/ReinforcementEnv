@@ -9,7 +9,8 @@ import gymnasium as gym
 from Agent import *
 import matplotlib.pyplot as plt
 
-if __name__ == "__main__":
+
+def mountaincar_DQN():
     args = SetupArgs().get_args()
 
     env = gym.make(args.env_name, render_mode="rgb_array")
@@ -26,3 +27,22 @@ if __name__ == "__main__":
     agent_unuseRnd.train(False)
 
     plt.show()
+
+
+def blackjack_actor_critic():
+    args = SetupArgs().get_args()
+    args.env_name = "Blackjack-v1"
+    args.num_episodes = 20000
+
+    env = gym.make(args.env_name, render_mode="rgb_array")
+
+    a2c = Actor_Critic(args)
+
+    agent = Agent(args, env, a2c)
+    agent.train(use_rnd=False)
+
+    plt.show()
+
+
+if __name__ == "__main__":
+    blackjack_actor_critic()
