@@ -1,3 +1,5 @@
+import math
+
 import gym
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,6 +12,7 @@ class AlphaMCControl:
         self.epsilon = epsilon
         self.gamma = gamma
         self.Q = {}  # 存储状态-动作值函数
+        self.win_rate = np.zeros((32, 11, 2))
 
     def choose_action(self, state):
         if np.random.uniform() < self.epsilon:
@@ -56,6 +59,7 @@ class AlphaMCControl:
         reward_list = []
         for episode in range(num_episodes):
             state, _ = self.env.reset()
+            start_state = state
             done = False
             episode_reward = 0
             episode_data = []  # 用于存储每个episode的状态、动作和奖励
@@ -67,6 +71,8 @@ class AlphaMCControl:
                 state = next_state
                 episode_reward += reward
 
+            if episode_reward >= 0:
+                self.win_rate[start_state[0]][start_state[1]][1 if start_state[2] else 0] += 1
             reward_list.append(episode_reward)
             # self.plot_reward(reward_list, 1)
             self.update_Q(episode_data)
@@ -75,32 +81,43 @@ class AlphaMCControl:
         player_win_count = 0
         dealer_win_count = 0
         reward_list = []
+        principal = 2000
         for episode in range(num_episodes):
             state, _ = self.env.reset()
+
             done = False
             episode_reward = 0
+
+            prob = self.win_rate[state[0]][state[1]][1 if state[2] else 0]
+            bet = math.floor((prob / 50000) * 10)
+            bet = max(bet, 1)
+            bet = min(bet, 100)
+
             while not done:
                 action = self.choose_action_greedy(state)
+
                 next_state, reward, done, _, _ = self.env.step(action)
                 episode_reward += reward
                 state = next_state
                 if done:
                     if reward > 0:
                         player_win_count += 1
+                        principal += bet
                     elif reward < 0:
                         dealer_win_count += 1
+                        principal -= bet
             reward_list.append(episode_reward)
-            self.plot_reward(reward_list, 1)
+            # self.plot_reward(reward_list, 1)
         print("Play with dealer {} rounds. Player win rate:{:5f} "
               "Player not lose rate: {:5f}"
-              "  dealer win rate: {:5f}".format(num_episodes, player_win_count / num_episodes,
+              "  dealer win rate: {:5f}   principal:{}".format(num_episodes, player_win_count / num_episodes,
                                                 (num_episodes - dealer_win_count) / num_episodes,
-                                                dealer_win_count / num_episodes))
+                                                dealer_win_count / num_episodes, principal))
 
 
 # 使用示例
 env = gym.make('Blackjack-v1', render_mode="rgb_array")
-agent = AlphaMCControl(env, alpha=0.002, epsilon=0.1, gamma=0.9)
+agent = AlphaMCControl(env, alpha=0.002, epsilon=0.1, gamma=0.99)
 agent.train(num_episodes=50000)
-agent.test(num_episodes=2000)
+agent.test(num_episodes=10000)
 plt.show()

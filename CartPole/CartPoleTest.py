@@ -172,9 +172,12 @@ if __name__ == '__main__':
             if done:
                 break
             state = s_prime
-        if episode_reward >= 100:
-            env = gym.make("CartPole-v1", render_mode="human")
+        # if episode_reward >= 100:
+        #     env = gym.make("CartPole-v1", render_mode="human")
         return_list.append(episode_reward)
+        if np.mean(return_list[-100:]) >= 195:
+            print("The env be solved after {} rounds".format(i - 100))
+            break
         dqn.plot_reward(return_list, 1)
         if EPSILON > 0.05:
             EPSILON *= 0.99
