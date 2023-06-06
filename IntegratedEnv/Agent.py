@@ -19,9 +19,9 @@ class Agent:
         self.args = args
         self.painter = Painter()
 
-    def train(self, use_rnd=True):
+    def train(self, use_rnd=True, rnd_weight_decay=1.0):
         RndNet = RNDNetwork()
-        RND_WEIGHT = 0.4
+        RND_WEIGHT = 0.7
         num_episodes = self.args.num_episodes
         return_list = []
         average_loss = []
@@ -42,7 +42,7 @@ class Agent:
                     episode_reward = 0
                     rounds += 1
 
-                    while not done:
+                    while not done and time_step < 200:
                         action = self.algorithm.select_action(state)
 
                         s_prime, reward, done, _, _ = self.env.step(action)
@@ -67,14 +67,17 @@ class Agent:
                         average_loss.append(loss)
 
                         if done:
-                            if reward >= 0:
+                            if reward > 0:
                                 player_win += 1
-                            else:
+                            elif reward < 0:
                                 dealer_win += 1
                             # print("Player state:{}   Dealer state:{}".format(s_prime[0], s_prime[1]))
 
                     return_list.append(episode_reward)
                     Iteration_reward.append(episode_reward)
+
+                    if use_rnd:
+                        RND_WEIGHT *= rnd_weight_decay
 
                     # 预留位置给绘制图形的函数
 
@@ -85,8 +88,8 @@ class Agent:
                                 "return of last 10 rounds": f"{np.mean(return_list[-10:]):3f}",
                                 "Iteration average reward:": f"{np.mean(Iteration_reward):3f}",
                                 "loss of last 10 rounds": f"{np.mean(average_loss[-10:]):9f}",
-                                "Player win rate": f"{(player_win / rounds):3f}",
-                                "Dealer win rate": f"{(dealer_win / rounds):3f}"
+                                # "Player win rate": f"{(player_win / rounds):3f}",
+                                # "Dealer win rate": f"{(dealer_win / rounds):3f}"
                             }
                         )
                     pbar.update(1)
@@ -95,20 +98,20 @@ class Agent:
             self.painter.plot_average_reward(return_list, 1,
                                              "{} on {}".format(self.algorithm.NAME, self.args.env_name),
                                              "{} + RND".format(self.algorithm.NAME),
-                                             "red")
+                                             "red" if rnd_weight_decay == 1.0 else "blue")
             plt.legend()
             self.painter.plot_episode_reward(return_list, 2,
                                              "{} on {}".format(self.algorithm.NAME, self.args.env_name),
                                              "{} + RND".format(self.algorithm.NAME),
-                                             "red")
+                                             "red" if rnd_weight_decay == 1.0 else "blue")
         else:
             self.painter.plot_average_reward(return_list, 1,
                                              "{} on {}".format(self.algorithm.NAME, self.args.env_name),
                                              self.algorithm.NAME,
                                              "blue")
             plt.legend()
-            # self.painter.plot_episode_reward(return_list, 2,
-            #                                  "{} on {}".format(self.algorithm.NAME, self.args.env_name),
-            #                                  self.algorithm.NAME,
-            #                                  "blue")
+            self.painter.plot_episode_reward(return_list, 2,
+                                             "{} on {}".format(self.algorithm.NAME, self.args.env_name),
+                                             self.algorithm.NAME,
+                                             "blue")
         plt.legend()

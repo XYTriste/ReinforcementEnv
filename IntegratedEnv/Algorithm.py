@@ -11,19 +11,18 @@ from Tools import *
 
 
 class DQN:
-    def __init__(self, args: SetupArgs, INPUT_DIM=2, HIDDEN_DIM=128, OUTPUT_DIM=3, HIDDEN_DIM_NUM=3,
-                 SIZEOF_EVERY_MEMORY=7):
+    def __init__(self, args: SetupArgs):
         self.NAME = "DQN"
         self.args = args
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        self.INPUT_DIM = INPUT_DIM  # 输入层的大小
-        self.HIDDEN_DIM = HIDDEN_DIM  # 隐藏层的大小
-        self.OUTPUT_DIM = OUTPUT_DIM  # 输出层的大小
-        self.HIDDEN_DIM_NUM = HIDDEN_DIM_NUM  # 隐藏层的数量
-        self.SIZEOF_EVERY_MEMORY = SIZEOF_EVERY_MEMORY  # 经验回放的样本大小，使用不同环境时应进行修改。
-        self.MEMORY_SHAPE = (3, 1, 1, 3)  # 经验回放的样本中s, a, r, s_prime所占大小，使用不同环境时应进行修改。
+        self.INPUT_DIM = args.INPUT_DIM  # 输入层的大小
+        self.HIDDEN_DIM = args.HIDDEN_DIM  # 隐藏层的大小
+        self.OUTPUT_DIM = args.OUTPUT_DIM  # 输出层的大小
+        self.HIDDEN_DIM_NUM = args.HIDDEN_DIM_NUM  # 隐藏层的数量
+        self.SIZEOF_EVERY_MEMORY = args.SIZEOF_EVERY_MEMORY  # 经验回放的样本大小，使用不同环境时应进行修改。
+        self.MEMORY_SHAPE = (2, 1, 1, 2, 1)  # 经验回放的样本中s, a, r, s_prime所占大小，使用不同环境时应进行修改。
 
         self.TARGET_REPLACE_ITER = 100
         self.MEMORY_CAPACITY = 10000
@@ -81,16 +80,20 @@ class DQN:
 
         batch_s = torch.FloatTensor(batch_memory[:, : self.MEMORY_SHAPE[0]]).to(self.device)
         batch_a = torch.LongTensor(
-            batch_memory[:, self.MEMORY_SHAPE[0]: self.MEMORY_SHAPE[0] + 1].astype(int)).to(self.device)
-        batch_r = torch.FloatTensor(batch_memory[:, self.MEMORY_SHAPE[0] + 1: self.MEMORY_SHAPE[0] + 2]).to(self.device)
+            batch_memory[:, self.MEMORY_SHAPE[0]: self.MEMORY_SHAPE[0] + self.MEMORY_SHAPE[1]].astype(int)).to(self.device)
+        batch_r = torch.FloatTensor(batch_memory[:, self.MEMORY_SHAPE[0] + self.MEMORY_SHAPE[1]: self.MEMORY_SHAPE[0] + self.MEMORY_SHAPE[1] + self.MEMORY_SHAPE[2]]).to(self.device)
         batch_s_prime = torch.FloatTensor(
-            batch_memory[:, self.MEMORY_SHAPE[0] + 2: self.MEMORY_SHAPE[0] + 5]).to(self.device)
-        batch_done = torch.LongTensor(batch_memory[:, -1:]).to(self.device)
+            batch_memory[:, self.MEMORY_SHAPE[0] + self.MEMORY_SHAPE[1] + self.MEMORY_SHAPE[2]: self.MEMORY_SHAPE[0] + self.MEMORY_SHAPE[1] + self.MEMORY_SHAPE[2] + self.MEMORY_SHAPE[3]]).to(self.device)
+        if len(self.MEMORY_SHAPE) == 5:
+            batch_done = torch.LongTensor(batch_memory[:, -self.MEMORY_SHAPE[-1]:]).to(self.device)
 
         estimated_q = self.main_net(batch_s).gather(1, batch_a)
         q_target = self.target_net(batch_s_prime).detach()
 
-        y = batch_r + self.args.gamma * q_target.max(1)[0].view(self.BATCH_SIZE, 1) * (1 - batch_done)
+        if len(self.MEMORY_SHAPE) == 5:
+            y = batch_r + self.args.gamma * q_target.max(1)[0].view(self.BATCH_SIZE, 1) * (1 - batch_done)
+        else:
+            y = batch_r + self.args.gamma * q_target.max(1)[0].view(self.BATCH_SIZE, 1)
 
         loss = self.loss_func(estimated_q, y)
 
