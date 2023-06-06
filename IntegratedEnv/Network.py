@@ -3,6 +3,7 @@
 # Author: Yu Xia
 # @File: Network.py
 # @software: PyCharm
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -77,6 +78,11 @@ class RNDNetwork(nn.Module):
         self.optimizer = torch.optim.Adam(self.predictor.parameters(), lr=self.LR)
         self.loss_func = nn.MSELoss()
 
+        self.sum_error = 0.0
+        self.running_std_error = 0.0
+        self.running_mean_deviation = 0.0
+        self.data_count = 0.0
+
     def forward(self, state):
         state = torch.unsqueeze(torch.FloatTensor(state), 0).to(self.device)
         predict = self.predictor(state)
@@ -90,8 +96,18 @@ class RNDNetwork(nn.Module):
         for param in self.predictor.parameters():
             param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
-
         return loss
 
     def get_intrinsic_reward(self, predict, target):
-        return self.update_parameters(predict, target)
+        intrinsic_reward = self.update_parameters(predict, target)
+        self.get_runtime_std_mean_deviation(intrinsic_reward.item())
+
+        return intrinsic_reward
+
+    def get_runtime_std_mean_deviation(self, data):  # 计算运行时的标准差与均差
+        self.data_count += 1
+        delta = data - np.mean(self.sum_error)
+        self.running_std_error += ((delta ** 2 - self.running_std_error) / self.data_count)
+        self.running_mean_deviation += (np.abs(delta) / self.data_count)
+
+        self.sum_error += data

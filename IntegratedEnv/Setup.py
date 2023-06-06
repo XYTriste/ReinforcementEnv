@@ -30,8 +30,8 @@ def mountaincar_DQN():
     agent_useRnd = Agent(args, env, dqn_first)
     agent_unuseRnd = Agent(args, env, dqn_second)
 
-    agent_useRnd.train()
-    agent_unuseRnd.train(rnd_weight_decay=0.95)
+    agent_useRnd.train(use_rnd=True, use_ngu=True,rnd_weight_decay=0.95)
+    # agent_unuseRnd.train(rnd_weight_decay=0.95)
 
     plt.show()
 

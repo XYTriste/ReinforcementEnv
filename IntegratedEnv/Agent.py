@@ -10,6 +10,7 @@ from tqdm import tqdm
 import numpy as np
 from Tools import Painter
 from Network import *
+from Algorithm import NGU
 
 
 class Agent:
@@ -19,9 +20,12 @@ class Agent:
         self.args = args
         self.painter = Painter()
 
-    def train(self, use_rnd=True, rnd_weight_decay=1.0):
+    def train(self, use_rnd=False, rnd_weight_decay=1.0, use_ngu=False):
         RndNet = RNDNetwork()
-        RND_WEIGHT = 0.7
+        RND_WEIGHT = 0.4
+
+        ngu = NGU(3)
+
         num_episodes = self.args.num_episodes
         return_list = []
         average_loss = []
@@ -42,6 +46,8 @@ class Agent:
                     episode_reward = 0
                     rounds += 1
 
+                    ngu.store_state(state)
+
                     while not done and time_step < 200:
                         action = self.algorithm.select_action(state)
 
@@ -53,6 +59,12 @@ class Agent:
                             predict, target = RndNet(torch.from_numpy(state))
                             intrinsic_reward = RndNet.get_intrinsic_reward(predict, target).item()
 
+                            if use_ngu:
+                                ngu_reward = ngu.get_intrinsic_reward(s_prime)
+                                alpha_t = 1 + ((RndNet.sum_error - RndNet.running_mean_deviation) / RndNet.running_std_error)
+                                ngu_reward = ngu_reward * min(max(alpha_t, 1), ngu.L)
+                                intrinsic_reward += ngu_reward
+
                             update_reward = ((1 - RND_WEIGHT) * reward + RND_WEIGHT * intrinsic_reward)
                         else:
                             update_reward = reward
@@ -62,6 +74,7 @@ class Agent:
 
                         episode_reward += reward
                         state = s_prime
+                        ngu.store_state(state)
 
                         time_step += 1
                         average_loss.append(loss)

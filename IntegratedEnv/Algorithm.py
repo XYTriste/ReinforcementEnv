@@ -80,10 +80,19 @@ class DQN:
 
         batch_s = torch.FloatTensor(batch_memory[:, : self.MEMORY_SHAPE[0]]).to(self.device)
         batch_a = torch.LongTensor(
-            batch_memory[:, self.MEMORY_SHAPE[0]: self.MEMORY_SHAPE[0] + self.MEMORY_SHAPE[1]].astype(int)).to(self.device)
-        batch_r = torch.FloatTensor(batch_memory[:, self.MEMORY_SHAPE[0] + self.MEMORY_SHAPE[1]: self.MEMORY_SHAPE[0] + self.MEMORY_SHAPE[1] + self.MEMORY_SHAPE[2]]).to(self.device)
+            batch_memory[:, self.MEMORY_SHAPE[0]: self.MEMORY_SHAPE[0] + self.MEMORY_SHAPE[1]].astype(int)).to(
+            self.device)
+        batch_r = torch.FloatTensor(batch_memory[:, self.MEMORY_SHAPE[0] + self.MEMORY_SHAPE[1]: self.MEMORY_SHAPE[0] +
+                                                                                                 self.MEMORY_SHAPE[1] +
+                                                                                                 self.MEMORY_SHAPE[
+                                                                                                     2]]).to(
+            self.device)
         batch_s_prime = torch.FloatTensor(
-            batch_memory[:, self.MEMORY_SHAPE[0] + self.MEMORY_SHAPE[1] + self.MEMORY_SHAPE[2]: self.MEMORY_SHAPE[0] + self.MEMORY_SHAPE[1] + self.MEMORY_SHAPE[2] + self.MEMORY_SHAPE[3]]).to(self.device)
+            batch_memory[:, self.MEMORY_SHAPE[0] + self.MEMORY_SHAPE[1] + self.MEMORY_SHAPE[2]: self.MEMORY_SHAPE[0] +
+                                                                                                self.MEMORY_SHAPE[1] +
+                                                                                                self.MEMORY_SHAPE[2] +
+                                                                                                self.MEMORY_SHAPE[
+                                                                                                    3]]).to(self.device)
         if len(self.MEMORY_SHAPE) == 5:
             batch_done = torch.LongTensor(batch_memory[:, -self.MEMORY_SHAPE[-1]:]).to(self.device)
 
@@ -158,3 +167,51 @@ class Actor_Critic:
 
     def step(self, s, a, r, s_prime, done):
         return self.update(s, a, r, s_prime, done)
+
+
+class NGU:
+    def __init__(self, K):
+        self.episode_states = []
+        self.episode_states_count = 0
+        self.K = K
+        self.k_nearest_neighbor = []
+        self.L = 5
+        self.c = 0.001
+        self.epsilon = 0.001
+
+        self.mean_value_of_k_neighbor = 0.0
+
+    def store_state(self, state):
+        self.episode_states.append(state)
+        self.episode_states_count += 1
+
+    def get_k_nearest_neighbor(self, new_state):
+        if self.episode_states_count < self.K:
+            return
+
+        distances = [np.linalg.norm(new_state - state) for state in self.episode_states]
+        k_nearest_indices = np.argsort(distances)[:self.K]
+        self.k_nearest_neighbor = [self.episode_states[i] for i in k_nearest_indices]
+        self.mean_value_of_k_neighbor = np.mean([np.sum(np.square(neighbor)) for neighbor in self.k_nearest_neighbor])
+
+    def RBF_kernel_function(self, x, y):
+        condition_number = np.linalg.norm(x - y)
+        return self.epsilon / ((condition_number / self.mean_value_of_k_neighbor) + self.epsilon)
+
+    def get_intrinsic_reward(self, new_state):
+        if self.episode_states_count < self.K:
+            return 0.0
+        else:
+            self.get_k_nearest_neighbor(new_state)
+
+            calc = 0.0
+            for neighbor in self.k_nearest_neighbor:
+                calc += self.RBF_kernel_function(new_state, neighbor)
+            calc = np.sqrt(calc)
+            return 1.0 / (calc + self.c)
+
+    def reset(self):
+        self.episode_states = []
+        self.episode_states_count = 0
+        self.mean_value_of_k_neighbor = 0.0
+        self.k_nearest_neighbor = []
