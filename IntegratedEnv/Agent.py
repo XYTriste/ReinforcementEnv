@@ -20,7 +20,7 @@ class Agent:
         self.args = args
         self.painter = Painter()
 
-    def train(self, use_rnd=False, rnd_weight_decay=1.0, use_ngu=False):
+    def train(self, use_rnd=False, rnd_weight_decay=1.0, use_ngu=False, painter_label=1):
         RndNet = RNDNetwork()
         RND_WEIGHT = 0.4
 
@@ -33,6 +33,9 @@ class Agent:
         player_win = 0
         dealer_win = 0
         rounds = 0
+
+        min_reward = 1.0
+        max_reward = -0.001
 
         for i in range(10):
             Iteration_reward = []
@@ -63,12 +66,21 @@ class Agent:
                                 ngu_reward = ngu.get_intrinsic_reward(s_prime)
                                 alpha_t = 1 + ((RndNet.sum_error - RndNet.running_mean_deviation) / RndNet.running_std_error)
                                 ngu_reward = ngu_reward * min(max(alpha_t, 1), ngu.L)
-                                intrinsic_reward += ngu_reward
+
+                                normalized_reward = ((ngu_reward - min_reward) / (max_reward - min_reward)) * 0.25   # 归一化
+                                min_reward = min(min_reward, max(ngu_reward, 0.001))
+                                max_reward = max(ngu_reward, max_reward)
+
+                                if ngu.episode_states_count > ngu.K * 2:
+                                    intrinsic_reward += normalized_reward
+                                    # print("normalize reward:", normalized_reward)
 
                             update_reward = ((1 - RND_WEIGHT) * reward + RND_WEIGHT * intrinsic_reward)
                         else:
                             update_reward = reward
 
+                        # if update_reward >= 0:
+                        #     print('it is inaccessible')
                         loss = self.algorithm.step(state, action, update_reward, s_prime, done)
                         #  算法每回合执行的一些步骤，里面包含更新网络等内容。返回网络的损失值
 
@@ -91,6 +103,8 @@ class Agent:
 
                     if use_rnd:
                         RND_WEIGHT *= rnd_weight_decay
+                        if use_ngu:
+                            ngu.reset()
 
                     # 预留位置给绘制图形的函数
 
@@ -107,24 +121,46 @@ class Agent:
                         )
                     pbar.update(1)
 
-        if use_rnd:
+        # if use_rnd:
+        #     self.painter.plot_average_reward(return_list, 1,
+        #                                      "{} on {}".format(self.algorithm.NAME, self.args.env_name),
+        #                                      "{} + RND + NGU".format(self.algorithm.NAME),
+        #                                      "red" if painter_label == 1 else "blue")
+        #     plt.legend()
+        #     self.painter.plot_episode_reward(return_list, 2,
+        #                                      "{} on {}".format(self.algorithm.NAME, self.args.env_name),
+        #                                      "{} + RND".format(self.algorithm.NAME),
+        #                                      "red" if painter_label == 1 else "blue")
+        # else:
+        #     self.painter.plot_average_reward(return_list, 1,
+        #                                      "{} on {}".format(self.algorithm.NAME, self.args.env_name),
+        #                                      self.algorithm.NAME,
+        #                                      "blue")
+        #     plt.legend()
+        #     self.painter.plot_episode_reward(return_list, 2,
+        #                                      "{} on {}".format(self.algorithm.NAME, self.args.env_name),
+        #                                      self.algorithm.NAME,
+        #                                      "blue")
+        # plt.legend()
+
+        if painter_label == 1:
             self.painter.plot_average_reward(return_list, 1,
                                              "{} on {}".format(self.algorithm.NAME, self.args.env_name),
-                                             "{} + RND".format(self.algorithm.NAME),
-                                             "red" if rnd_weight_decay == 1.0 else "blue")
+                                             "{} + RND + NGU".format(self.algorithm.NAME),
+                                             "red")
             plt.legend()
             self.painter.plot_episode_reward(return_list, 2,
                                              "{} on {}".format(self.algorithm.NAME, self.args.env_name),
-                                             "{} + RND".format(self.algorithm.NAME),
-                                             "red" if rnd_weight_decay == 1.0 else "blue")
+                                             "{} + RND + NGU".format(self.algorithm.NAME),
+                                             "red")
         else:
             self.painter.plot_average_reward(return_list, 1,
                                              "{} on {}".format(self.algorithm.NAME, self.args.env_name),
-                                             self.algorithm.NAME,
+                                             "{} + RND".format(self.algorithm.NAME),
                                              "blue")
             plt.legend()
             self.painter.plot_episode_reward(return_list, 2,
                                              "{} on {}".format(self.algorithm.NAME, self.args.env_name),
-                                             self.algorithm.NAME,
+                                             "{} + RND".format(self.algorithm.NAME),
                                              "blue")
         plt.legend()

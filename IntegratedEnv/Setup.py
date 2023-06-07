@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 def mountaincar_DQN():
     args = SetupArgs().get_args()
 
+    args.num_episodes = 1500
     args.INPUT_DIM = 2
     args.HIDDEN_DIM = 128
     args.OUTPUT_DIM = 3
@@ -30,8 +31,8 @@ def mountaincar_DQN():
     agent_useRnd = Agent(args, env, dqn_first)
     agent_unuseRnd = Agent(args, env, dqn_second)
 
-    agent_useRnd.train(use_rnd=True, use_ngu=True,rnd_weight_decay=0.95)
-    # agent_unuseRnd.train(rnd_weight_decay=0.95)
+    agent_useRnd.train(use_rnd=True, use_ngu=True, rnd_weight_decay=0.95, painter_label=1)
+    agent_unuseRnd.train(use_rnd=True, use_ngu=False, rnd_weight_decay=0.95, painter_label=2)
 
     plt.show()
 
@@ -40,6 +41,12 @@ def blackjack_actor_critic():
     args = SetupArgs().get_args()
     args.env_name = "Blackjack-v1"
     args.num_episodes = 20000
+    args.INPUT_DIM = 2
+    args.HIDDEN_DIM = 128
+    args.OUTPUT_DIM = 2
+    args.HIDDEN_DIM_NUM = 3
+    args.SIZEOF_EVERY_MEMORY = 7
+    args.MEMORY_SHAPE = (2, 1, 1, 2, 1)
 
     env = gym.make(args.env_name, render_mode="rgb_array")
 

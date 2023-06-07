@@ -45,7 +45,7 @@ class DQN:
 
     @torch.no_grad()
     def select_action(self, state):
-        state = torch.tensor([state], dtype=torch.float).to(self.device)
+        state = torch.tensor(state, dtype=torch.float).to(self.device)
         if np.random.uniform(0, 1) < self.epsilon:
             action = np.random.randint(0, self.OUTPUT_DIM)
         else:
@@ -199,7 +199,7 @@ class NGU:
         return self.epsilon / ((condition_number / self.mean_value_of_k_neighbor) + self.epsilon)
 
     def get_intrinsic_reward(self, new_state):
-        if self.episode_states_count < self.K:
+        if self.episode_states_count < self.K * 3:
             return 0.0
         else:
             self.get_k_nearest_neighbor(new_state)
