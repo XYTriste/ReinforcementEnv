@@ -31,6 +31,12 @@ class AlphaMCControl:
     def choose_action_greedy(self, state):
         return np.argmax(self.Q[state])
 
+    def choose_action_easy(self, state):
+        if state[0] < 15:
+            return 1
+        else:
+            return 0
+
     def update_Q(self, episode):
         returns = 0
         for state, action, reward in reversed(episode):
@@ -94,7 +100,7 @@ class AlphaMCControl:
             bet = min(bet, 100)
 
             while not done:
-                action = self.choose_action_greedy(state)
+                action = self.choose_action_easy(state)
 
                 next_state, reward, done, _, _ = self.env.step(action)
                 episode_reward += reward

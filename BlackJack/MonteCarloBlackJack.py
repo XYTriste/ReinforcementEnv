@@ -1,12 +1,16 @@
 from BlackJackEnv_v1 import *
 import numpy as np
 from BlackJackUtils import *
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+import pandas as pd
 
 env = BlackJackEnvironment()
 
 V = np.zeros((32, 12))  # 状态价值
 V_N = np.zeros((32, 12))  # 状态出现次数
-Q = np.zeros((32, 2))  # 行为价值
+Q = np.zeros((32, 11, 2))  # 行为价值
 # Q = np.random.rand((32, 2)) * 1E-5
 Q_N = np.zeros((32, 2))  # 行为出现次数
 gamma = 0.5
@@ -28,8 +32,8 @@ def initialization_training_data():
 
     V = np.zeros((32, 12))  # 状态价值
     V_N = np.zeros((32, 12))  # 状态出现次数
-    Q = np.zeros((32, 2))  # 行为价值
-    Q_N = np.zeros((32, 2))  # 行为出现次数
+    Q = np.zeros((32, 11, 2))  # 行为价值
+    Q_N = np.zeros((32, 11, 2))  # 行为出现次数
     epsilon = 1
 
     for i in range(1, 32):
@@ -41,26 +45,33 @@ def greedy_policy(state):
     return np.argmax(Q[state])
 
 
-def epsilon_greedy_policy(player_state, epsilon=0.1):
+def epsilon_greedy_policy(player_state, dealer_state, epsilon=0.1):
     if np.random.uniform(0, 1) < epsilon:
         return env.action_space.sample()
     else:
-        Q_state = Q[player_state]
+        Q_state = Q[player_state, dealer_state]
         return np.argmax(Q_state)
 
 
-def greedy_policy(player_state):
-    return np.argmax(Q[player_state])
+def greedy_policy(player_state, dealer_state):
+    return np.argmax(Q[player_state, dealer_state])
 
 
-def player_policy(player_state):
+def player_policy(player_state, dealer_state):
     global win_count
     global lose_count
     curr_win_rate = win_count[player_state] / (win_count[player_state] + lose_count[player_state])
     if curr_win_rate < 0.5:
         return 1
     else:
-        return np.argmax(Q[player_state])
+        return np.argmax(Q[player_state, dealer_state])
+
+
+def easy_policy(player_state):
+    if player_state < 15:
+        return 1
+    else:
+        return 0
 
 
 def monte_carlo():
@@ -70,7 +81,7 @@ def monte_carlo():
     dealer_win = 0
     state_count = {}
 
-    rounds = 500000
+    rounds = 50000
     ALPHA = 0.002
     average_step = (1 - ALPHA) / rounds
 
@@ -80,25 +91,23 @@ def monte_carlo():
 
         percent = rounds / 20
         if i > 0 and i % percent == 0:
-            print("训练完了 {} 回合, 玩家赢了: {} 回合   庄家赢了: {} 回合".format(i, player_win, dealer_win))
-            process_bar(rounds, i)
-            play_with_dealer(10000, i)
+            pass
+            # print("训练完了 {} 回合, 玩家赢了: {} 回合   庄家赢了: {} 回合".format(i, player_win, dealer_win))
+            # process_bar(rounds, i)
+            # play_with_dealer(10000, i)
 
         obs, _ = env.reset()
         player_state, dealer_state, usable_ace = obs
-
-
 
         episode = []
 
         done = False
 
-
         while not done:
-            action = epsilon_greedy_policy(player_state, epsilon)
+            action = epsilon_greedy_policy(player_state, dealer_state, epsilon)
             observation, reward, done, _, _ = env.step(action)
 
-            episode.append((player_state, action, reward))
+            episode.append((player_state, action, reward, dealer_state))
             player_state = observation[0]
 
             if done:
@@ -109,7 +118,8 @@ def monte_carlo():
                 if reward > 0:
                     win_count[player_state] += 1
                     env.player_win_count[player_state] += 1
-                    env.player_win_rate[player_state] = ((env.player_win_count[player_state]) / state_count[player_state])
+                    env.player_win_rate[player_state] = (
+                            (env.player_win_count[player_state]) / state_count[player_state])
                 else:
                     lose_count[player_state] += 1
 
@@ -149,14 +159,14 @@ def monte_carlo():
         #             Q[state][action] = ALPHA * returns[index]
         #     index += 1
         returns = 0
-        for state, action, reward in reversed(episode):
+        for state, action, reward, dealer_state in reversed(episode):
             returns = gamma * returns + reward
             if state in visited_state:
-                Q[state, action] = (1 - ALPHA) * Q[state, action] + ALPHA * returns
+                Q[state, dealer_state, action] = (1 - ALPHA) * Q[state, dealer_state, action] + ALPHA * returns
             else:
                 visited_state.add(state)
-                Q[state, :] = 0
-                Q[state, action] = ALPHA * returns
+                Q[state, dealer_state, :] = 0
+                Q[state, dealer_state, action] = ALPHA * returns
 
 
 def play_with_dealer(rounds, trained_rounds):
@@ -184,7 +194,7 @@ def play_with_dealer(rounds, trained_rounds):
 
         while not done:
             win_weight = (1 - bust_rate) * env.player_win_rate[player_state]
-            action = greedy_policy(player_state)
+            action = easy_policy(player_state)
             observation, reward, done, _, _ = env.step(action)
             player_state = observation[0]
 
@@ -203,15 +213,44 @@ def play_with_dealer(rounds, trained_rounds):
     print_winning_probability(rounds, trained_rounds, player_win, dealer_win, draw)
 
 
+def softmax(x):
+    e_x = np.exp(x - np.max(x))  # 减去最大值，用于数值稳定性
+    return e_x / np.sum(e_x, axis=0)
+
+
 if __name__ == '__main__':
     monte_carlo()
-    play_with_dealer(10000, 500000)
-    # for i in range(4, 22):
-    #     for j in range(2):
-    #         print("状态 {} 时, 行为 {} 的行为价值为:{}".format(i, "不抽牌" if j == 0 else "抽牌", Q[i, j]))
-    #     print("{} 更好".format("抽牌" if Q[i, 1] > Q[i, 0] else "不抽牌"))
-    #     print()
+    play_with_dealer(10000, 10000)
 
     for i in range(1, 32):
-        print("Player State:{}   win rate:{}   lose rate:{}".format(i, win_count[i] / (win_count[i] + lose_count[i]),
-                                                                    lose_count[i] / (win_count[i] + lose_count[i])))
+        for j in range(1, 11):
+            print("玩家点数为{} 庄家点数为 {} 时的最佳动作是: {}".format(i, j, "抽牌" if np.argmax(Q[i, j]) else "不抽牌"))
+
+    best_actions = np.zeros((32, 11))
+
+    # 根据最佳行为设置相应位置为0或1
+    for i in range(32):
+        for j in range(11):
+            best_actions[i, j] = np.argmax(Q[i, j])
+
+    # best_actions = best_actions[10:22, :]
+    # 绘制热力图
+    plt.imshow(best_actions[:, 1:], cmap='coolwarm', aspect='auto')
+
+    # 添加坐标轴标签
+    plt.xlabel("Dealer state")
+    plt.ylabel("Player state")
+
+    # 设置坐标轴刻度
+    plt.xticks(range(1, 11))
+    plt.yticks(range(1, 32))
+
+    # 添加颜色条
+    cbar = plt.colorbar()
+    cbar.set_ticks([0, 1])
+    cbar.set_ticklabels(["stick", "hit"])
+
+    plt.grid(True)
+
+    # 显示图形
+    plt.show()
