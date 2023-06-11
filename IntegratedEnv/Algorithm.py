@@ -11,8 +11,8 @@ from Tools import *
 
 
 class DQN:
-    def __init__(self, args: SetupArgs):
-        self.NAME = "DQN"
+    def __init__(self, args: SetupArgs, *, NAME="DQN"):
+        self.NAME = NAME
         self.args = args
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -22,10 +22,10 @@ class DQN:
         self.OUTPUT_DIM = args.OUTPUT_DIM  # 输出层的大小
         self.HIDDEN_DIM_NUM = args.HIDDEN_DIM_NUM  # 隐藏层的数量
         self.SIZEOF_EVERY_MEMORY = args.SIZEOF_EVERY_MEMORY  # 经验回放的样本大小，使用不同环境时应进行修改。
-        self.MEMORY_SHAPE = (2, 1, 1, 2, 1)  # 经验回放的样本中s, a, r, s_prime所占大小，使用不同环境时应进行修改。
+        self.MEMORY_SHAPE = args.MEMORY_SHAPE  # 经验回放的样本中s, a, r, s_prime所占大小，使用不同环境时应进行修改。
 
         self.TARGET_REPLACE_ITER = 100
-        self.MEMORY_CAPACITY = 10000
+        self.MEMORY_CAPACITY = 1000000
         self.LR = 0.001
         self.BATCH_SIZE = 128
 
@@ -45,7 +45,10 @@ class DQN:
 
     @torch.no_grad()
     def select_action(self, state):
-        state = torch.tensor(state, dtype=torch.float).to(self.device)
+        if not isinstance(state, torch.Tensor):
+            state = torch.tensor(state, dtype=torch.float).to(self.device)
+        else:
+            state = state.to(self.device)
         if np.random.uniform(0, 1) < self.epsilon:
             action = np.random.randint(0, self.OUTPUT_DIM)
         else:
@@ -61,7 +64,7 @@ class DQN:
 
     def step(self, s, a, r, s_prime, done) -> float:
         if self.epsilon > 0.01:
-            self.epsilon *= 0.99
+            self.epsilon *= 0.9995
 
         self.store_transition(s, a, r, s_prime, done)
         self.learn_frequency += 1
@@ -97,7 +100,14 @@ class DQN:
             batch_done = torch.LongTensor(batch_memory[:, -self.MEMORY_SHAPE[-1]:]).to(self.device)
 
         estimated_q = self.main_net(batch_s).gather(1, batch_a)
-        q_target = self.target_net(batch_s_prime).detach()
+        if self.NAME == "DQN":
+            q_target = self.target_net(batch_s_prime).detach()
+        elif self.NAME == "DDQN":
+            q_values_prime = self.main_net(batch_s_prime)
+            best_actions = torch.argmax(q_values_prime, dim=1)
+            q_target = self.target_net(batch_s_prime).detach()
+            # y = batch_r + self.args.gamma * q_target.gather(1, best_actions.unsqueeze(1)).squeeze(1) * (1 -
+            # batch_done)
 
         if len(self.MEMORY_SHAPE) == 5:
             y = batch_r + self.args.gamma * q_target.max(1)[0].view(self.BATCH_SIZE, 1) * (1 - batch_done)

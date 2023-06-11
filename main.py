@@ -52,35 +52,58 @@ line, = ax.plot(x, y)
 # # 显示图形
 # plt.show()
 
+# import gymnasium
+# import keyboard
+#
+# # 创建Montezuma's Revenge环境
+# env = gymnasium.make("ALE/MontezumaRevenge-v5", render_mode="human")
+#
+# # 重置环境并获取初始观察
+# observation, _ = env.reset()
+#
+#
+# # 执行1000个动作
+# while True:
+#     # 随机选择一个动作
+#     # action = env.action_space.sample()
+#
+#
+#
+#
+#     # 执行选定的动作，并获取下一个观察、奖励、终止标志和额外信息
+#     next_observation, reward, done, info, _ = env.step(action)
+#
+#     # 在控制台打印当前观察和奖励
+#     print('Observation:', next_observation)
+#     print('Reward:', reward)
+#
+#     # 如果游戏结束，重置环境
+#     if done:
+#         observation, _ = env.reset()
+#     else:
+#         observation = next_observation
+#
+# # 关闭环境
+# env.close()
+
+import cv2
+import numpy as np
 import gymnasium as gym
 
-env = gym.make("Blackjack-v1", render_mode="rgb_array")
+def preprocess_observation(observation):
+    # 将原始观测从RGB图像转换为灰度图像
+    gray = cv2.cvtColor(observation, cv2.COLOR_RGB2GRAY)
+    # 对灰度图像进行裁剪，截取游戏关键区域
+    cropped = gray[34:194, :]
+    # 调整图像大小为所需的尺寸
+    resized = cv2.resize(cropped, (84, 84), interpolation=cv2.INTER_AREA)
+    # 将像素值归一化到[0, 1]范围
+    normalized = resized / 255.0
+    # 返回处理后的状态特征
+    return normalized
 
-
-def easy_policy(player_state):
-    if player_state < 15:
-        return 1
-    else:
-        return 0
-
-
-rounds = 10000
-win_rounds = 0
-lose_rounds = 0
-
-for i in range(rounds):
-    state, _ = env.reset()
-    done = False
-
-    while not done:
-        action = easy_policy(state[0])
-        state, reward, done, _, _ = env.step(action)
-        if done:
-            if reward > 0:
-                win_rounds += 1
-            elif reward < 0:
-                lose_rounds += 1
-
-print("win rate:{:3f}  not lose rate:{:3f}   lose rate:{:3f}".format((win_rounds / rounds),
-                                                                     (rounds - lose_rounds) / rounds,
-                                                                     (lose_rounds / rounds)))
+# 示例使用方法
+env = gym.make("ALE/MontezumaRevenge-v5")
+observation, _ = env.reset()
+state = preprocess_observation(observation)
+print(state)

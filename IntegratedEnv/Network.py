@@ -7,6 +7,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.nn.init as init
+import torchvision.transforms as transforms
 
 
 class Net(nn.Module):
@@ -26,6 +28,25 @@ class Net(nn.Module):
         for hidden_layer in self.hidden_layers:
             x = F.relu(hidden_layer(x))
         x = self.output_layer(x)
+        return x
+
+
+class CNN(nn.Module):
+    def __init__(self):
+        super(CNN, self).__init__()
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=8, stride=4)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
+        self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
+        self.fc1 = nn.Linear(7 * 7 * 64, 512)
+
+    def forward(self, x):
+        x /= 255.0
+        x = nn.functional.relu(self.conv1(x))
+        x = nn.functional.relu(self.conv2(x))
+        x = nn.functional.relu(self.conv3(x))
+        x = x.view(x.size(0), -1)
+        x = nn.functional.relu(self.fc1(x))
+
         return x
 
 
@@ -63,17 +84,25 @@ class RNDNetwork(nn.Module):
     通常用于鼓励智能体更多的探索新的状态。
     """
 
-    def __init__(self):
+    def __init__(self, args):
         super(RNDNetwork, self).__init__()
-        self.INPUT_DIM = 2  # 输入层的大小
-        self.HIDDEN_DIM = 128  # 隐藏层的大小
-        self.OUTPUT_DIM = 3  # 输出层的大小
-        self.HIDDEN_DIM_NUM = 1
+        self.INPUT_DIM = args.INPUT_DIM  # 输入层的大小
+        self.HIDDEN_DIM = args.HIDDEN_DIM  # 隐藏层的大小
+        self.OUTPUT_DIM = args.OUTPUT_DIM  # 输出层的大小
+        self.HIDDEN_DIM_NUM = args.HIDDEN_DIM_NUM
         self.LR = 0.001
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.predictor = Net(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM, self.HIDDEN_DIM_NUM).to(self.device)
+        init.normal_(self.predictor.input_layer.weight, mean=0, std=0.01)
+        for layer in self.predictor.hidden_layers:
+            init.normal_(layer.weight, mean=0, std=0.01)
+        init.normal_(self.predictor.output_layer.weight, mean=0, std=0.01)
         self.target = Net(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM, self.HIDDEN_DIM_NUM).to(self.device)
+        init.normal_(self.target.input_layer.weight, mean=0, std=0.01)
+        for layer in self.target.hidden_layers:
+            init.normal_(layer.weight, mean=0, std=0.01)
+        init.normal_(self.target.output_layer.weight, mean=0, std=0.01)
 
         self.optimizer = torch.optim.Adam(self.predictor.parameters(), lr=self.LR)
         self.loss_func = nn.MSELoss()
@@ -98,9 +127,13 @@ class RNDNetwork(nn.Module):
         self.optimizer.step()
         return loss
 
-    def get_intrinsic_reward(self, predict, target):
+    def get_intrinsic_reward(self, predict, target, CALC=True):
+        """
+        CALC参数指定是否将误差用于计算运行时标准差和均差
+        """
         intrinsic_reward = self.update_parameters(predict, target)
-        self.get_runtime_std_mean_deviation(intrinsic_reward.item())
+        if CALC:
+            self.get_runtime_std_mean_deviation(intrinsic_reward.item())
 
         return intrinsic_reward
 
@@ -111,3 +144,5 @@ class RNDNetwork(nn.Module):
         self.running_mean_deviation += (np.abs(delta) / self.data_count)
 
         self.sum_error += data
+
+

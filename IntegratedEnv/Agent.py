@@ -3,6 +3,7 @@
 # Author: Yu Xia
 # @File: Agent.py
 # @software: PyCharm
+import gymnasium
 import gymnasium as gym
 import torch
 from matplotlib import pyplot as plt
@@ -13,12 +14,218 @@ from Network import *
 from Algorithm import NGU
 
 
+def random_init(agent, cnn_model, env: gymnasium.Env, rnd: RNDNetwork):
+    state, _ = env.reset()
+    error = -100
+    state = agent.preprocess(state).unsqueeze(0)
+    state = cnn_model(state).squeeze(0)
+    while abs(error) > 1:
+        action = env.action_space.sample()
+        s_prime, reward, done, _, _ = env.step(action)
+        predict, target = rnd(state)
+        error = rnd.get_intrinsic_reward(predict, target)
+
+        state = s_prime
+        state = agent.preprocess(state).unsqueeze(0)
+        state = cnn_model(state).squeeze(0)
+
+
 class Agent:
-    def __init__(self, args, env=None, algorithm=None):
-        self.env = env
+    def __init__(self, args, algorithm=None):
         self.algorithm = algorithm
         self.args = args
         self.painter = Painter()
+
+        self.preprocess = transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.Grayscale(),
+            transforms.Resize((84, 84)),
+            transforms.ToTensor(),
+        ])
+
+    def train_montezuma(self, RND=False, NGU=False, *, rnd_weight_decay=1.0, painter_label=1, PRE_PROCESS=True):
+        env = gymnasium.make("ALE/MontezumaRevenge-v5")
+        num_episodes = self.args.num_episodes
+
+        cnn_model = CNN()
+        RndNet = RNDNetwork(self.args)
+        RND_WEIGHT = 1
+        if RND:
+            random_init(self, cnn_model, env, RndNet)
+
+        return_list = []
+        loss_list = []
+        observations = []
+
+        mean_acc = 0.0  # 运行时平均值
+        var_acc = 0.0  # 运行时方差
+        observation_count = 1
+        only = False
+
+        for i in range(10):
+            with tqdm(total=int(num_episodes / 10), desc=f"Iteration {i}") as pbar:
+                for episode in range(num_episodes // 10):
+                    state, _ = env.reset()
+
+                    if PRE_PROCESS:
+                        """
+                        将原始的输入通过转换为灰度图像并通过运行时标准差和均差进行归一化
+                        最后将其裁剪到[-5, 5]范围内
+                        """
+                        state = self.preprocess(state).unsqueeze(0)
+                        state = cnn_model(state).squeeze(0)
+                        # observations.append(state)
+                        #
+                        # delta = state - mean_acc
+                        # mean_acc += (delta / observation_count)
+                        # var_acc += delta * (state - mean_acc)
+                        #
+                        # runtime_std_error = np.sqrt(var_acc.detach().numpy() / observation_count)
+                        #
+                        # state = (state - mean_acc.detach().numpy()) / runtime_std_error
+
+                    done = False
+                    episode_reward = 0
+                    episode_loss = 0
+                    while not done:
+                        action = self.algorithm.select_action(state)
+                        s_prime, reward, done, _, _ = env.step(action)
+
+                        extrinsic_reward = reward / (max(abs(reward), 1))
+                        if PRE_PROCESS:
+                            s_prime = self.preprocess(s_prime).unsqueeze(0)
+                            s_prime = cnn_model(s_prime).squeeze(0)
+                            # observation_count += 1
+                            # delta = s_prime - mean_acc
+                            # mean_acc += (delta / observation_count)
+                            # var_acc += delta * (s_prime - mean_acc)
+                            #
+                            # runtime_std_error = np.sqrt(var_acc.detach().numpy() / observation_count)
+                            #
+                            # s_prime = (s_prime - mean_acc.detach().numpy()) / runtime_std_error
+
+                        if RND:
+                            predict, target = RndNet(state)
+                            intrinsic_reward = RndNet.get_intrinsic_reward(predict,
+                                                                           target).item()  # / RndNet.running_std_error
+                            # update_reward = 2 * extrinsic_reward + intrinsic_reward
+                            update_reward = intrinsic_reward
+                        else:
+                            update_reward = extrinsic_reward
+
+                        loss = self.algorithm.step(state.detach().numpy(), action, update_reward,
+                                                   s_prime.detach().numpy(), done)
+
+                        episode_reward += reward
+                        episode_loss += loss
+
+                        state = s_prime
+                    if (episode_reward != 0 or num_episodes / 10 * i + episode + 1 > 50) and only:
+                        env = gymnasium.make("ALE/MontezumaRevenge-v5", render_mode="human")
+                        only = False
+                    return_list.append(episode_reward)
+                    loss_list.append(episode_loss)
+                    if (episode + 1) % 10 == 0:
+                        pbar.set_postfix(
+                            {
+                                "episode": f"{num_episodes / 10 * i + episode + 1}",
+                                "return of last 10 rounds": f"{np.mean(return_list[-10:]):3f}",
+                                "loss of last 10 rounds": f"{np.mean(loss_list[-10:]):3f}"
+                            }
+                        )
+                    pbar.update(1)
+
+    def train_breakout(self, RND=False, NGU=False, *, rnd_weight_decay=1.0, painter_label=1, PRE_PROCESS=True):
+        env = gymnasium.make("ALE/Breakout-v5")
+        num_episodes = self.args.num_episodes
+
+        cnn_model = CNN()
+        RndNet = RNDNetwork(self.args)
+        RND_WEIGHT = 0.2
+        if RND:
+            random_init(self, cnn_model, env, RndNet)
+
+        return_list = []
+        loss_list = []
+        observations = []
+
+        mean_acc = 0.0  # 运行时平均值
+        var_acc = 0.0  # 运行时方差
+        observation_count = 1
+        only = False
+
+        for i in range(10):
+            with tqdm(total=int(num_episodes / 10), desc=f"Iteration {i}") as pbar:
+                for episode in range(num_episodes // 10):
+                    state, _ = env.reset()
+
+                    if PRE_PROCESS:
+                        """
+                        将原始的输入通过转换为灰度图像并通过运行时标准差和均差进行归一化
+                        最后将其裁剪到[-5, 5]范围内
+                        """
+                        state = self.preprocess(state).unsqueeze(0)
+                        state = cnn_model(state).squeeze(0)
+                        # observations.append(state)
+                        #
+                        # delta = state - mean_acc
+                        # mean_acc += (delta / observation_count)
+                        # var_acc += delta * (state - mean_acc)
+                        #
+                        # runtime_std_error = np.sqrt(var_acc.detach().numpy() / observation_count)
+                        #
+                        # state = (state - mean_acc.detach().numpy()) / runtime_std_error
+
+                    done = False
+                    episode_reward = 0
+                    episode_loss = 0
+                    while not done:
+                        action = self.algorithm.select_action(state)
+                        s_prime, reward, done, _, _ = env.step(action)
+
+                        extrinsic_reward = reward / (max(abs(reward), 1))
+                        if PRE_PROCESS:
+                            s_prime = self.preprocess(s_prime).unsqueeze(0)
+                            s_prime = cnn_model(s_prime).squeeze(0)
+                            # observation_count += 1
+                            # delta = s_prime - mean_acc
+                            # mean_acc += (delta / observation_count)
+                            # var_acc += delta * (s_prime - mean_acc)
+                            #
+                            # runtime_std_error = np.sqrt(var_acc.detach().numpy() / observation_count)
+                            #
+                            # s_prime = (s_prime - mean_acc.detach().numpy()) / runtime_std_error
+
+                        if RND:
+                            predict, target = RndNet(state)
+                            intrinsic_reward = RndNet.get_intrinsic_reward(predict,
+                                                                           target).item()  # / RndNet.running_std_error
+                            # update_reward = 2 * extrinsic_reward + intrinsic_reward
+                            update_reward = (1 - RND_WEIGHT) * reward + RND_WEIGHT * intrinsic_reward
+                        else:
+                            update_reward = reward
+
+                        loss = self.algorithm.step(state.detach().numpy(), action, update_reward,
+                                                   s_prime.detach().numpy(), done)
+
+                        episode_reward += reward
+                        episode_loss += loss
+
+                        state = s_prime
+                    if (episode_reward >= 10) and only:
+                        env = gymnasium.make("ALE/Breakout-v5", render_mode="human")
+                        only = False
+                    return_list.append(episode_reward)
+                    loss_list.append(episode_loss)
+                    if (episode + 1) % 10 == 0:
+                        pbar.set_postfix(
+                            {
+                                "episode": f"{num_episodes / 10 * i + episode + 1}",
+                                "return of last 10 rounds": f"{np.mean(return_list[-10:]):3f}",
+                                "loss of last 10 rounds": f"{np.mean(loss_list[-10:]):3f}"
+                            }
+                        )
+                    pbar.update(1)
 
     def train(self, use_rnd=False, rnd_weight_decay=1.0, use_ngu=False, painter_label=1):
         RndNet = RNDNetwork()
@@ -64,10 +271,12 @@ class Agent:
 
                             if use_ngu:
                                 ngu_reward = ngu.get_intrinsic_reward(s_prime)
-                                alpha_t = 1 + ((RndNet.sum_error - RndNet.running_mean_deviation) / RndNet.running_std_error)
+                                alpha_t = 1 + ((
+                                                       RndNet.sum_error - RndNet.running_mean_deviation) / RndNet.running_std_error)
                                 ngu_reward = ngu_reward * min(max(alpha_t, 1), ngu.L)
 
-                                normalized_reward = ((ngu_reward - min_reward) / (max_reward - min_reward)) * 0.25   # 归一化
+                                normalized_reward = ((ngu_reward - min_reward) / (
+                                        max_reward - min_reward)) * 0.25  # 归一化
                                 min_reward = min(min_reward, max(ngu_reward, 0.001))
                                 max_reward = max(ngu_reward, max_reward)
 

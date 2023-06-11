@@ -14,11 +14,11 @@ class SetupArgs:
 
     def get_args(self, description="Parameters setting"):
         parser = argparse.ArgumentParser(description=description)
-        parser.add_argument('--lr', type=float, default=1e-3, help='Learning rate')
+        parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate')
         parser.add_argument('--num_episodes', type=int, default=1500, help='Training frequency')
         parser.add_argument('--seed', type=int, default=996, metavar='S', help='set random seed')
         parser.add_argument("--gamma", type=float, default=0.99, metavar='S', help='discounted rate')
-        parser.add_argument('--epsilon', type=float, default=0.1, metavar='S', help='Exploration rate')
+        parser.add_argument('--epsilon', type=float, default=1, metavar='S', help='Exploration rate')
         parser.add_argument('--env_name', type=str, default="MountainCar-v0", metavar='S', help="Environment name")
 
         return parser.parse_args()
