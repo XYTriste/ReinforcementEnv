@@ -4,7 +4,6 @@
 # @File: Agent.py
 # @software: PyCharm
 import gymnasium
-import gymnasium as gym
 import torch
 from matplotlib import pyplot as plt
 from tqdm import tqdm
@@ -157,9 +156,11 @@ class Agent:
             last_obs = obs
 
     def train_breakout(self, RND=False, NGU=False, *, rnd_weight_decay=1.0, painter_label=1, PRE_PROCESS=True):
-        env = gymnasium.make("Breakout-v0")
+        env = gymnasium.make("ALE/Breakout-v5", mode=44)
         self.env = env
         num_episodes = self.args.num_episodes
+
+        save_model_freq = 50
 
         RndNet = RNDNetwork(self.args)
         RND_WEIGHT = 0.2
@@ -205,6 +206,10 @@ class Agent:
                                 "loss of last 10 rounds": f"{np.mean(loss_list[-10:]):9f}"
                             }
                         )
+                    if (num_episodes / 10 * i + episode + 1) % save_model_freq == 0:
+                        torch.save({"main_net_state_dict": self.algorithm.main_net.state_dict(),
+                                    "target_net_state_dict": self.algorithm.target_net.state_dict()},
+                                   "{}_model_breakout_{}.pth".format(self.algorithm.NAME, num_episodes / 10 * i + episode + 1))
                     pbar.update(1)
 
     def train(self, use_rnd=False, rnd_weight_decay=1.0, use_ngu=False, painter_label=1):

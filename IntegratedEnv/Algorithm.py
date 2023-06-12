@@ -230,6 +230,7 @@ class Actor_Critic:
         self.critic = Critic(3, 128, 2).to(self.device)
         self.gamma = self.args.gamma
         self.LR = self.args.lr
+        self.epsilon = args.epsilon
 
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=self.LR)
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=self.LR)
@@ -270,6 +271,8 @@ class Actor_Critic:
         return actor_loss.item()
 
     def step(self, s, a, r, s_prime, done):
+        if self.epsilon > 0.01:
+            self.epsilon *= 0.99
         return self.update(s, a, r, s_prime, done)
 
 

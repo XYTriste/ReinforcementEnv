@@ -81,7 +81,7 @@ def monte_carlo():
     dealer_win = 0
     state_count = {}
 
-    rounds = 50000
+    rounds = 150000
     ALPHA = 0.002
     average_step = (1 - ALPHA) / rounds
 

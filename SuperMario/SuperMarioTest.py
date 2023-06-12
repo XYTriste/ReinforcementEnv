@@ -4,17 +4,17 @@
 # @File: SuperMarioTest.py
 # @software: PyCharm
 
-from nes_py.wrappers import JoypadSpace
-import gym_super_mario_bros
-from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
+# from nes_py.wrappers import JoypadSpace
+# import gym_super_mario_bros
+# from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
 import gym
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
-env = gym.make('SuperMarioBros-v0', apply_api_compatibility=True, render_mode="rgb_array")
-env = JoypadSpace(env, SIMPLE_MOVEMENT)
+# env = gym.make('SuperMarioBros-v0', apply_api_compatibility=True, render_mode="rgb_array")
+# env = JoypadSpace(env, SIMPLE_MOVEMENT)
 
 INPUT_DIM = (240, 256, 3)
 
@@ -69,14 +69,17 @@ class Net(nn.Module):
 
 
 if __name__ == '__main__':
-    done = True
-    env.reset()
-    for step in range(5000):
-        action = env.action_space.sample()
-        obs, reward, terminated, truncated, info = env.step(action)
-        done = terminated or truncated
+    # done = True
+    # env.reset()
+    # for step in range(5000):
+    #     action = env.action_space.sample()
+    #     obs, reward, terminated, truncated, info = env.step(action)
+    #     done = terminated or truncated
+    #
+    #     if done:
+    #         state = env.reset()
+    #
+    # env.close()
 
-        if done:
-            state = env.reset()
-
-    env.close()
+    lst = [(1,2), (2, 3)]
+    print(np.mean([np.sum(np.square(l)) for l in lst]))
