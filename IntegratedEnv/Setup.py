@@ -77,15 +77,13 @@ def montezuma_revenge():
 def breakout():
     args = SetupArgs().get_args()
 
-    args.num_episodes = 30000
-    args.INPUT_DIM = 512
+    args.num_episodes = 2000
+    args.INPUT_DIM = 4
     args.HIDDEN_DIM = 128
     args.OUTPUT_DIM = 4
     args.HIDDEN_DIM_NUM = 5
-    args.SIZEOF_EVERY_MEMORY = 1027
-    args.MEMORY_SHAPE = (512, 1, 1, 512, 1)
 
-    double_dqn = DQN(args, NAME="DDQN")
+    double_dqn = DQN_CNN(args)
     agent = Agent(args, double_dqn)
     agent.train_breakout()
 

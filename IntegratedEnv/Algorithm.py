@@ -8,6 +8,7 @@ import torch
 
 from Network import *
 from Tools import *
+from replaybuffer import *
 
 
 class DQN:
@@ -46,9 +47,9 @@ class DQN:
     @torch.no_grad()
     def select_action(self, state):
         if not isinstance(state, torch.Tensor):
-            state = torch.tensor(state, dtype=torch.float).to(self.device)
+            state = torch.tensor(state, dtype=torch.float).unsqueeze(0).to(self.device)
         else:
-            state = state.to(self.device)
+            state = state.unsqueeze(0).to(self.device)
         if np.random.uniform(0, 1) < self.epsilon:
             action = np.random.randint(0, self.OUTPUT_DIM)
         else:
@@ -114,6 +115,99 @@ class DQN:
         else:
             y = batch_r + self.args.gamma * q_target.max(1)[0].view(self.BATCH_SIZE, 1)
 
+        loss = self.loss_func(estimated_q, y)
+
+        self.optimizer.zero_grad()
+        loss.backward()
+        for param in self.main_net.parameters():
+            param.grad.data.clamp_(-1, 1)
+        self.optimizer.step()
+
+        return loss.item()
+
+
+class DQN_CNN:
+    def __init__(self, args: SetupArgs, *, NAME="DQN"):
+        self.NAME = NAME
+        self.args = args
+
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        self.INPUT_DIM = args.INPUT_DIM  # 输入层的大小
+        self.HIDDEN_DIM = args.HIDDEN_DIM  # 隐藏层的大小
+        self.OUTPUT_DIM = args.OUTPUT_DIM  # 输出层的大小
+        self.HIDDEN_DIM_NUM = args.HIDDEN_DIM_NUM  # 隐藏层的数量
+
+        self.TARGET_REPLACE_ITER = 10000
+        self.LR = self.args.lr
+        self.BATCH_SIZE = 32
+
+        self.epsilon = self.args.epsilon
+        self.learn_step_counter = 0
+
+        self.memory = ReplayBuffer(1000000, 4)
+        self.memory_counter = 0
+        self.learn_frequency = 0  # 记录执行了多少次step方法，控制经验回放的速率
+
+        self.main_net = CNN(self.INPUT_DIM, self.OUTPUT_DIM)
+        self.target_net = CNN(self.INPUT_DIM, self.OUTPUT_DIM)
+        self.target_net.load_state_dict(self.main_net.state_dict())
+        self.target_net.eval()
+
+        self.optimizer = torch.optim.Adam(self.main_net.parameters(), lr=self.LR)  # 网络参数优化
+        self.loss_func = nn.MSELoss()  # 损失函数，默认使用均方误差损失函数
+
+    @torch.no_grad()
+    def select_action(self, state):
+        if np.random.uniform(0, 1) < self.epsilon:
+            action = np.random.randint(0, self.OUTPUT_DIM)
+        else:
+            if not isinstance(state, torch.Tensor):
+                state = torch.from_numpy(state).unsqueeze(0)
+            action = self.main_net(state).argmax().item()
+
+        return action
+
+    def step(self, index, a, r, done) -> float:
+        """
+        得到下一个观测之后才能调用
+        """
+        if self.epsilon > 0.01:
+            self.epsilon *= 0.9995
+
+        self.memory.store_memory_effect(index, a, r, done)
+        self.learn_frequency += 1
+        if self.memory.memory_counter > self.memory.learning_starts and self.learn_frequency % 4 == 0:
+            loss = self.learn()
+            return loss
+        return 0.0
+
+    def change_to_tensor(self, data, dtype=torch.float32):
+        """
+        change ndarray to torch.tensor
+        """
+        data_tensor = torch.from_numpy(data).type(dtype)
+        return data_tensor
+
+    def learn(self):
+        if self.learn_step_counter % self.TARGET_REPLACE_ITER == 0:
+            self.target_net.load_state_dict(self.main_net.state_dict())
+        self.learn_step_counter += 1
+        batch_s, batch_a, batch_r, batch_s_prime, batch_done = self.memory.sample_memories(self.BATCH_SIZE)
+        batch_s, batch_s_prime = self.change_to_tensor(batch_s) / 255.0, self.change_to_tensor(batch_s_prime) / 255.0
+        batch_a, batch_r = self.change_to_tensor(batch_a, dtype=torch.int64), self.change_to_tensor(batch_r)
+        batch_done = self.change_to_tensor(batch_done, dtype=torch.int64)
+
+        estimated_q = self.main_net(batch_s)
+        estimated_q = estimated_q.gather(1, batch_a)
+        if self.NAME == "DQN":
+            q_target = self.target_net(batch_s_prime).detach()
+        elif self.NAME == "DDQN":
+            q_values_prime = self.main_net(batch_s_prime)
+            best_actions = torch.argmax(q_values_prime, dim=1)
+            q_target = self.target_net(batch_s_prime).detach()
+
+        y = batch_r + self.args.gamma * q_target.max(1)[0].view(self.BATCH_SIZE, 1) * (1 - batch_done)
         loss = self.loss_func(estimated_q, y)
 
         self.optimizer.zero_grad()

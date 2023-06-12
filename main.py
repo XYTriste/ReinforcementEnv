@@ -86,24 +86,28 @@ line, = ax.plot(x, y)
 # # 关闭环境
 # env.close()
 
-import cv2
-import numpy as np
-import gymnasium as gym
-
-def preprocess_observation(observation):
-    # 将原始观测从RGB图像转换为灰度图像
-    gray = cv2.cvtColor(observation, cv2.COLOR_RGB2GRAY)
-    # 对灰度图像进行裁剪，截取游戏关键区域
-    cropped = gray[34:194, :]
-    # 调整图像大小为所需的尺寸
-    resized = cv2.resize(cropped, (84, 84), interpolation=cv2.INTER_AREA)
-    # 将像素值归一化到[0, 1]范围
-    normalized = resized / 255.0
-    # 返回处理后的状态特征
-    return normalized
-
-# 示例使用方法
-env = gym.make("ALE/MontezumaRevenge-v5")
-observation, _ = env.reset()
-state = preprocess_observation(observation)
-print(state)
+# import cv2
+# import numpy as np
+# import gymnasium as gym
+#
+# def preprocess_observation(observation):
+#     # 将原始观测从RGB图像转换为灰度图像
+#     gray = cv2.cvtColor(observation, cv2.COLOR_RGB2GRAY)
+#     # 对灰度图像进行裁剪，截取游戏关键区域
+#     cropped = gray[34:194, :]
+#     # 调整图像大小为所需的尺寸
+#     resized = cv2.resize(cropped, (84, 84), interpolation=cv2.INTER_AREA)
+#     # 将像素值归一化到[0, 1]范围
+#     normalized = resized / 255.0
+#     # 返回处理后的状态特征
+#     return normalized
+#
+# # 示例使用方法
+# env = gym.make("ALE/MontezumaRevenge-v5")
+# observation, _ = env.reset()
+# state = preprocess_observation(observation)
+# print(state)
+import torch
+state = torch.randn(32, 4, 84, 84)  # (batch_size, color_channel, img_height,img_width)
+state_size = state.size()
+print(state_size)
