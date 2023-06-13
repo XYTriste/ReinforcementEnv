@@ -10,6 +10,9 @@ import torch.nn.functional as F
 import torch.nn.init as init
 import torchvision.transforms as transforms
 
+torch.FloatTensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor  # 如果有GPU和cuda
+# ，数据将转移到GPU执行
+torch.LongTensor = torch.cuda.LongTensor if torch.cuda.is_available() else torch.LongTensor
 
 class Net(nn.Module):
     def __init__(self, INPUT_DIM, HIDDEN_DIM, OUTPUT_DIM, HIDDEN_LAYERS_NUM=1):
@@ -145,4 +148,61 @@ class RNDNetwork(nn.Module):
 
         self.sum_error += data
 
+class RNDNetwork_CNN(nn.Module):
+    """
+    该类基于随机网络蒸馏(Random Network Distillation, RND)的思想，基于预测误差给予智能体一定的内在奖励。
+    通常用于鼓励智能体更多的探索新的状态。
+    """
 
+    def __init__(self, args):
+        super(RNDNetwork_CNN, self).__init__()
+        self.INPUT_DIM = args.INPUT_DIM  # 输入层的大小
+        self.HIDDEN_DIM = args.HIDDEN_DIM  # 隐藏层的大小
+        self.OUTPUT_DIM = args.OUTPUT_DIM  # 输出层的大小
+        self.HIDDEN_DIM_NUM = args.HIDDEN_DIM_NUM
+        self.LR = 0.001
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        self.predictor = CNN(self.INPUT_DIM, self.OUTPUT_DIM).to(self.device)
+        self.target = CNN(self.INPUT_DIM, self.OUTPUT_DIM).to(self.device)
+
+        self.optimizer = torch.optim.Adam(self.predictor.parameters(), lr=self.LR)
+        self.loss_func = nn.HuberLoss()
+
+        self.sum_error = 0.0
+        self.running_std_error = 0.0
+        self.running_mean_deviation = 0.0
+        self.data_count = 0.0
+
+    def forward(self, state):
+        state = torch.unsqueeze(torch.FloatTensor(state), 0)
+        predict = self.predictor(state)
+        target = self.target(state)
+        return predict, target
+
+    def update_parameters(self, predict, target):
+        loss = self.loss_func(predict, target)
+        self.optimizer.zero_grad()
+        loss.backward()
+        for param in self.predictor.parameters():
+            param.grad.data.clamp_(-1, 1)
+        self.optimizer.step()
+        return loss
+
+    def get_intrinsic_reward(self, predict, target, CALC=True):
+        """
+        CALC参数指定是否将误差用于计算运行时标准差和均差
+        """
+        intrinsic_reward = self.update_parameters(predict, target)
+        if CALC:
+            self.get_runtime_std_mean_deviation(intrinsic_reward.item())
+
+        return intrinsic_reward
+
+    def get_runtime_std_mean_deviation(self, data):  # 计算运行时的标准差与均差
+        self.data_count += 1
+        delta = data - np.mean(self.sum_error)
+        self.running_std_error += ((delta ** 2 - self.running_std_error) / self.data_count)
+        self.running_mean_deviation += (np.abs(delta) / self.data_count)
+
+        self.sum_error += data

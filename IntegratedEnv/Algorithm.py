@@ -149,13 +149,13 @@ class DQN_CNN:
         self.memory_counter = 0
         self.learn_frequency = 0  # 记录执行了多少次step方法，控制经验回放的速率
 
-        self.main_net = CNN(self.INPUT_DIM, self.OUTPUT_DIM)
-        self.target_net = CNN(self.INPUT_DIM, self.OUTPUT_DIM)
+        self.main_net = CNN(self.INPUT_DIM, self.OUTPUT_DIM).to(self.device)
+        self.target_net = CNN(self.INPUT_DIM, self.OUTPUT_DIM).to(self.device)
         self.target_net.load_state_dict(self.main_net.state_dict())
         self.target_net.eval()
 
         self.optimizer = torch.optim.Adam(self.main_net.parameters(), lr=self.LR)  # 网络参数优化
-        self.loss_func = nn.MSELoss()  # 损失函数，默认使用均方误差损失函数
+        self.loss_func = nn.HuberLoss()  # 损失函数，默认使用均方误差损失函数
 
     @torch.no_grad()
     def select_action(self, state):
@@ -163,7 +163,7 @@ class DQN_CNN:
             action = np.random.randint(0, self.OUTPUT_DIM)
         else:
             if not isinstance(state, torch.Tensor):
-                state = torch.from_numpy(state).unsqueeze(0)
+                state = torch.from_numpy(state).unsqueeze(0).to(self.device)
             action = self.main_net(state).argmax().item()
 
         return action
@@ -172,8 +172,8 @@ class DQN_CNN:
         """
         得到下一个观测之后才能调用
         """
-        if self.epsilon > 0.01:
-            self.epsilon *= 0.9995
+        # if self.epsilon > 0.01:
+        #     self.epsilon *= 0.9995
 
         self.memory.store_memory_effect(index, a, r, done)
         self.learn_frequency += 1
@@ -194,9 +194,9 @@ class DQN_CNN:
             self.target_net.load_state_dict(self.main_net.state_dict())
         self.learn_step_counter += 1
         batch_s, batch_a, batch_r, batch_s_prime, batch_done = self.memory.sample_memories(self.BATCH_SIZE)
-        batch_s, batch_s_prime = self.change_to_tensor(batch_s) / 255.0, self.change_to_tensor(batch_s_prime) / 255.0
-        batch_a, batch_r = self.change_to_tensor(batch_a, dtype=torch.int64), self.change_to_tensor(batch_r)
-        batch_done = self.change_to_tensor(batch_done, dtype=torch.int64)
+        batch_s, batch_s_prime = self.change_to_tensor(batch_s).to(self.device) / 255.0, self.change_to_tensor(batch_s_prime).to(self.device) / 255.0
+        batch_a, batch_r = self.change_to_tensor(batch_a, dtype=torch.int64).to(self.device), self.change_to_tensor(batch_r).to(self.device)
+        batch_done = self.change_to_tensor(batch_done, dtype=torch.int64).to(self.device)
 
         estimated_q = self.main_net(batch_s)
         estimated_q = estimated_q.gather(1, batch_a)
