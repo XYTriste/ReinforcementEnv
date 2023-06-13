@@ -6,14 +6,14 @@ import seaborn as sns
 import numpy as np
 import pandas as pd
 
-env = BlackJackEnvironment()
+env = gym.make("Blackjack-v1", render_mode="rgb_array")
 
 V = np.zeros((32, 12))  # 状态价值
 V_N = np.zeros((32, 12))  # 状态出现次数
 Q = np.zeros((32, 11, 2))  # 行为价值
 # Q = np.random.rand((32, 2)) * 1E-5
 Q_N = np.zeros((32, 2))  # 行为出现次数
-gamma = 0.5
+gamma = 0.99
 epsilon = 0.1
 record = {}
 
@@ -81,21 +81,25 @@ def monte_carlo():
     dealer_win = 0
     state_count = {}
 
+    train_rounds = 0
     rounds = 150000
     ALPHA = 0.002
     average_step = (1 - ALPHA) / rounds
 
     visited_state = set()  # 记录状态是否出现过
 
+    # while train_rounds < 30000000 or (train_rounds < 30000000 and player_win / train_rounds < 44.0):
     for i in range(rounds):
 
-        percent = rounds / 20
-        if i > 0 and i % percent == 0:
-            pass
+        # percent = rounds / 20
+        # if i > 0 and i % percent == 0:
+        #     pass
             # print("训练完了 {} 回合, 玩家赢了: {} 回合   庄家赢了: {} 回合".format(i, player_win, dealer_win))
             # process_bar(rounds, i)
             # play_with_dealer(10000, i)
 
+        if train_rounds % 100000 == 0 and train_rounds > 0:
+            print("train rounds:{}   player win rate:{}".format(train_rounds, player_win / train_rounds))
         obs, _ = env.reset()
         player_state, dealer_state, usable_ace = obs
 
@@ -115,21 +119,20 @@ def monte_carlo():
                     state_count[player_state] += 1
                 else:
                     state_count[player_state] = 1
-                if reward > 0:
-                    win_count[player_state] += 1
-                    env.player_win_count[player_state] += 1
-                    env.player_win_rate[player_state] = (
-                            (env.player_win_count[player_state]) / state_count[player_state])
-                else:
-                    lose_count[player_state] += 1
-
-        if epsilon > 0.001:
-            epsilon *= 0.99
-
-        if episode[-1][-1] >= 0:
+        if reward > 0:
             player_win += 1
-        elif episode[-1][-1] < 0:
-            dealer_win += 1
+            win_count[player_state] += 1
+        elif reward < 0:
+            lose_count[player_state] += 1
+
+        # if epsilon > 0.001:
+        #     epsilon *= 0.99
+
+        # if episode[-1][-1] >= 0:
+        #     player_win += 1
+        # elif episode[-1][-1] < 0:
+        #     dealer_win += 1
+        train_rounds += 1
         # G = 0
         # returns = []
         # for t in range(len(episode) - 1, -1, -1):
@@ -161,12 +164,13 @@ def monte_carlo():
         returns = 0
         for state, action, reward, dealer_state in reversed(episode):
             returns = gamma * returns + reward
-            if state in visited_state:
-                Q[state, dealer_state, action] = (1 - ALPHA) * Q[state, dealer_state, action] + ALPHA * returns
-            else:
-                visited_state.add(state)
-                Q[state, dealer_state, :] = 0
-                Q[state, dealer_state, action] = ALPHA * returns
+            # if (state, dealer_state) in visited_state:
+            Q[state, dealer_state, action] = (1 - ALPHA) * Q[state, dealer_state, action] + ALPHA * returns
+            # else:
+            #     # print("player:{}  dealer:{}".format(state, dealer_state))
+            #     visited_state.add((state, dealer_state))
+            #     Q[state, dealer_state, :] = 0
+            #     Q[state, dealer_state, action] = ALPHA * returns
 
 
 def play_with_dealer(rounds, trained_rounds):
@@ -184,25 +188,14 @@ def play_with_dealer(rounds, trained_rounds):
         obs, _ = env.reset()
         player_state, dealer_state, _ = obs
 
-        prob = env.return_probability()
-        bust_rate = 0
-        for key, values in prob.items():
-            if player_state + key > 21:
-                bust_rate += values
 
         # print(sum(env.player_win_rate.values()))
 
         while not done:
-            win_weight = (1 - bust_rate) * env.player_win_rate[player_state]
-            action = easy_policy(player_state)
+            action = greedy_policy(player_state, dealer_state)
             observation, reward, done, _, _ = env.step(action)
             player_state = observation[0]
-
-            prob = env.return_probability()
-            bust_rate = 0
-            for key, values in prob.items():
-                if player_state + key > 21:
-                    bust_rate += values
+            dealer_state = observation[1]
 
         if reward > 0:
             player_win += 1
@@ -222,8 +215,8 @@ if __name__ == '__main__':
     monte_carlo()
     play_with_dealer(10000, 10000)
 
-    for i in range(1, 32):
-        for j in range(1, 11):
+    for i in range(2, 32):
+        for j in range(2, 11):
             print("玩家点数为{} 庄家点数为 {} 时的最佳动作是: {}".format(i, j, "抽牌" if np.argmax(Q[i, j]) else "不抽牌"))
 
     best_actions = np.zeros((32, 11))

@@ -3,7 +3,7 @@ import math
 import gym
 import numpy as np
 import matplotlib.pyplot as plt
-
+from matplotlib.colors import LinearSegmentedColormap
 
 class AlphaMCControl:
     def __init__(self, env, alpha, epsilon, gamma):
@@ -63,7 +63,11 @@ class AlphaMCControl:
 
     def train(self, num_episodes):
         reward_list = []
-        for episode in range(num_episodes):
+        train_rounds = 0
+        player_win, dealer_win, draw = 0, 0, 0
+        while train_rounds < 30000000 or (train_rounds < 30000000 and player_win / train_rounds < 44.0):
+            if train_rounds % 100000 == 0 and train_rounds > 0:
+                print("Train {} rounds.  win rate:{:4f}%".format(train_rounds, player_win / train_rounds))
             state, _ = self.env.reset()
             start_state = state
             done = False
@@ -78,7 +82,14 @@ class AlphaMCControl:
                 episode_reward += reward
 
             if episode_reward >= 0:
+                if episode_reward > 0:
+                    player_win += 1
+                elif episode_reward == 0:
+                    draw += 1
+                else:
+                    dealer_win += 1
                 self.win_rate[start_state[0]][start_state[1]][1 if start_state[2] else 0] += 1
+            train_rounds += 1
             reward_list.append(episode_reward)
             # self.plot_reward(reward_list, 1)
             self.update_Q(episode_data)
@@ -100,7 +111,7 @@ class AlphaMCControl:
             bet = min(bet, 100)
 
             while not done:
-                action = self.choose_action_easy(state)
+                action = self.choose_action_greedy(state)
 
                 next_state, reward, done, _, _ = self.env.step(action)
                 episode_reward += reward
@@ -126,4 +137,63 @@ env = gym.make('Blackjack-v1', render_mode="rgb_array")
 agent = AlphaMCControl(env, alpha=0.002, epsilon=0.1, gamma=0.99)
 agent.train(num_episodes=50000)
 agent.test(num_episodes=10000)
+for i in range(2, 22):
+    for j in range(1, 11):
+        print("玩家 {} 点， 庄家{} 点.最优行为是:{}".format(i, j, "抽牌" if np.argmax(agent.Q[i, j, False]) else "不抽牌"))
+action_array = []
+for i in range(21, 10, -1):
+    lis = []
+    for j in range(2, 11):
+        if (i, j, False) in agent.Q:
+            lis.append(np.argmax(agent.Q[(i, j, False)]))
+        else:
+            lis.append(0)
+    action_array.append(lis)
+action_values = np.array(action_array)
+fig, ax = plt.subplots(figsize=(6, 6))
+colors = [(0, 'red'),  (1, 'green')]
+cmap = LinearSegmentedColormap.from_list('custom_cmap', colors)
+heatmap = ax.imshow(action_values, cmap=cmap, vmin=0, vmax=1, extent=[2, 10, 11, 21])
+
+plt.xticks(range(2, 11))
+plt.yticks(range(11, 22))
+# 自定义标签和标题
+# ax._xlabel("Dealer's Card Value")
+# ax._ylabel("Player's Sum")
+# ax._title("Action Value Function")
+# ax.grid(True)
+# 添加颜色条
+cbar = plt.colorbar(heatmap)
+cbar.set_ticks([0, 1])
+cbar.set_ticklabels(["stick", "hit"])
+
+# 显示热力图
 plt.show()
+# best_actions = np.zeros((32, 11))
+
+# 根据最佳行为设置相应位置为0或1
+# for i in range(32):
+#     for j in range(11):
+#         best_actions[i, j] = np.argmax(agent.Q[i, j])
+#
+# # best_actions = best_actions[10:22, :]
+# # 绘制热力图
+# plt.imshow(best_actions[:, 1:], cmap='coolwarm', aspect='auto')
+#
+# # 添加坐标轴标签
+# plt.xlabel("Dealer state")
+# plt.ylabel("Player state")
+#
+# # 设置坐标轴刻度
+# plt.xticks(range(1, 11))
+# plt.yticks(range(1, 32))
+#
+# # 添加颜色条
+# cbar = plt.colorbar()
+# cbar.set_ticks([0, 1])
+# cbar.set_ticklabels(["stick", "hit"])
+#
+# plt.grid(True)
+#
+# # 显示图形
+# plt.show()

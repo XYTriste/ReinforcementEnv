@@ -107,7 +107,34 @@ line, = ax.plot(x, y)
 # observation, _ = env.reset()
 # state = preprocess_observation(observation)
 # print(state)
-import torch
-state = torch.randn(32, 4, 84, 84)  # (batch_size, color_channel, img_height,img_width)
-state_size = state.size()
-print(state_size)
+# x = 1
+# count = 0
+#
+# while x >= 0.01:
+#     x *= 0.997
+#     count += 1
+#
+# print("乘以0.9995多少次后小于0.01：", count)
+# # s = "123"
+# # print(s + "RND" if True else "")
+import numpy as np
+import matplotlib.pyplot as plt
+
+# 行为价值函数的二维数组
+action_values = np.array([[0.1, 0.3, 0.2],
+                          [0.2, 0.5, 0.3],
+                          [0.3, 0.2, 0.1]])
+
+# 创建热力图对象
+plt.imshow(action_values, cmap='hot')
+
+# 自定义标签和标题
+plt.xlabel("Dealer's Card Value")
+plt.ylabel("Player's Sum")
+plt.title("Action Value Function")
+
+# 添加颜色条
+plt.colorbar()
+
+# 显示热力图
+plt.show()
