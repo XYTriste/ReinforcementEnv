@@ -12,6 +12,7 @@ class AlphaMCControl:
         self.epsilon = epsilon
         self.gamma = gamma
         self.Q = {}  # 存储状态-动作值函数
+        self.count = {}
         self.win_rate = np.zeros((32, 11, 2))
 
     def choose_action(self, state):
@@ -44,10 +45,13 @@ class AlphaMCControl:
             if state in self.Q:
                 q_values = self.Q[state]
                 q_values[action] = (1 - self.alpha) * q_values[action] + self.alpha * returns
+                # q_values[action] += (1 / self.count[state][action]) * returns
             else:
                 # 如果状态尚未探索过，则将其添加到Q表中
                 self.Q[state] = np.zeros(self.env.action_space.n)
                 self.Q[state][action] = self.alpha * returns
+                # self.count[state] = np.zeros(self.env.action_space.n)
+                # self.count[state][action] += 1
 
     def plot_reward(self, reward_list, window, end=False):
         plt.figure(window)
@@ -65,7 +69,7 @@ class AlphaMCControl:
         reward_list = []
         train_rounds = 0
         player_win, dealer_win, draw = 0, 0, 0
-        while train_rounds < 30000000 or (train_rounds < 30000000 and player_win / train_rounds < 44.0):
+        while train_rounds < 3000000 or (train_rounds < 3000000 and player_win / train_rounds < 44.0):
             if train_rounds % 100000 == 0 and train_rounds > 0:
                 print("Train {} rounds.  win rate:{:4f}%".format(train_rounds, player_win / train_rounds))
             state, _ = self.env.reset()
@@ -91,8 +95,8 @@ class AlphaMCControl:
                 self.win_rate[start_state[0]][start_state[1]][1 if start_state[2] else 0] += 1
             train_rounds += 1
             reward_list.append(episode_reward)
-            # self.plot_reward(reward_list, 1)
             self.update_Q(episode_data)
+        self.plot_reward(reward_list, 1)
 
     def test(self, num_episodes):
         player_win_count = 0
@@ -134,16 +138,19 @@ class AlphaMCControl:
 
 # 使用示例
 env = gym.make('Blackjack-v1', render_mode="rgb_array")
-agent = AlphaMCControl(env, alpha=0.002, epsilon=0.1, gamma=0.99)
+agent = AlphaMCControl(env, alpha=0.0001, epsilon=0.1, gamma=0.99)
 agent.train(num_episodes=50000)
 agent.test(num_episodes=10000)
 for i in range(2, 22):
-    for j in range(1, 11):
-        print("玩家 {} 点， 庄家{} 点.最优行为是:{}".format(i, j, "抽牌" if np.argmax(agent.Q[i, j, False]) else "不抽牌"))
+    for j in range(2, 11):
+        if (i, j, False) in agent.Q:
+            print("玩家 {} 点， 庄家{} 点.最优行为是:{}   抽牌价值:{:4f}  不抽牌价值:{:4f}"
+                  .format(i, j, "抽牌" if np.argmax(agent.Q[i, j, False]) else "不抽牌",
+                          agent.Q[i, j, False][1], agent.Q[i, j, False][0]))
 action_array = []
 for i in range(21, 10, -1):
     lis = []
-    for j in range(2, 11):
+    for j in range(1, 11):
         if (i, j, False) in agent.Q:
             lis.append(np.argmax(agent.Q[(i, j, False)]))
         else:
@@ -153,15 +160,15 @@ action_values = np.array(action_array)
 fig, ax = plt.subplots(figsize=(6, 6))
 colors = [(0, 'red'),  (1, 'green')]
 cmap = LinearSegmentedColormap.from_list('custom_cmap', colors)
-heatmap = ax.imshow(action_values, cmap=cmap, vmin=0, vmax=1, extent=[2, 10, 11, 21])
+heatmap = ax.imshow(action_values, cmap=cmap, vmin=0, vmax=1, extent=[1, 10, 11, 21])
 
-plt.xticks(range(2, 11))
+plt.xticks(range(1, 11))
 plt.yticks(range(11, 22))
 # 自定义标签和标题
 # ax._xlabel("Dealer's Card Value")
 # ax._ylabel("Player's Sum")
 # ax._title("Action Value Function")
-# ax.grid(True)
+plt.grid(True)
 # 添加颜色条
 cbar = plt.colorbar(heatmap)
 cbar.set_ticks([0, 1])

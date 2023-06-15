@@ -14,7 +14,7 @@ class SetupArgs:
 
     def get_args(self, description="Parameters setting"):
         parser = argparse.ArgumentParser(description=description)
-        parser.add_argument('--lr', type=float, default=0.00025, help='Learning rate')
+        parser.add_argument('--lr', type=float, default=1e-5, help='Learning rate')
         parser.add_argument('--num_episodes', type=int, default=1500, help='Training frequency')
         parser.add_argument('--seed', type=int, default=24, metavar='S', help='set random seed')
         parser.add_argument("--gamma", type=float, default=0.99, metavar='S', help='discounted rate')
@@ -28,10 +28,11 @@ class Painter:
     def __init__(self):
         self.x_data = []
         self.y_data = []
+        self.return_list = []
         self.fig, self.ax = plt.subplots()
         self.line, = self.ax.plot(self.x_data, self.y_data)
 
-    def plot_average_reward(self, reward_list, window, title, curve_label, color, end=False, xlabel="Episodes", ylabel="Average reward"):
+    def plot_average_reward(self, reward, window, title, curve_label, color, end=False, xlabel="Episodes", ylabel="Average reward"):
         """
         计算并绘制前n个回合的平均奖励并更新
         """
@@ -40,14 +41,36 @@ class Painter:
         plt.ylabel(ylabel)
         plt.title(title)
 
-        list_t = [np.mean(reward_list[:i]) for i in range(len(reward_list))]
-
-        plt.plot(np.array(list_t), color=color, label=curve_label, linewidth=0.8)
+        # list_t = [np.mean(reward_list[:i]) for i in range(len(reward_list))]
+        if len(self.return_list) == 0:
+            self.return_list.append(reward)
+        else:
+            size = len(self.return_list) + 1
+            new_data = self.return_list[-1] + (reward - self.return_list[-1]) / size
+            self.return_list.append(new_data)
+        plt.plot(np.array(self.return_list), color=color, label=curve_label, linewidth=0.8)
 
         if end:
             plt.show()
         else:
             plt.pause(0.001)
+
+    def plot_average_reward_by_list(self, list, window, title, curve_label, color, end=False, xlabel="Episodes",
+                            ylabel="Average reward"):
+        plt.ion()
+        for reward in list:
+            if len(self.return_list) == 0:
+                self.return_list.append(reward)
+            else:
+                size = len(self.return_list) + 1
+                new_data = self.return_list[-1] + (reward - self.return_list[-1]) / size
+                self.return_list.append(new_data)
+        plt.plot(np.array(self.return_list), color=color, label=curve_label, linewidth=0.8)
+
+        if end:
+            plt.show()
+        else:
+            plt.pause(3)
 
     def plot_episode_reward(self, reward_list, window, title, curve_label, color, end=False, xlabel="Episodes", ylabel="Returns"):
         plt.figure(window)

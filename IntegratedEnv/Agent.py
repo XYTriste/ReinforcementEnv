@@ -149,11 +149,14 @@ class Agent:
             action = self.env.action_space.sample()
             # interact with env
             obs, reward, done, info, _ = self.env.step(action)
-            reward /= 200
+            # reward /= 200
 
             if RND:
                 predict, target = self.rnd(encoded_obs)
                 intrinsic_reward = self.rnd.get_intrinsic_reward(predict, target, CALC=False)
+                update_reward = (1 - self.rnd_weight) * reward + self.rnd_weight * intrinsic_reward
+            else:
+                update_reward = reward
 
             # store other info
             self.algorithm.memory.store_memory_effect(cur_index, action, reward, done)
@@ -170,12 +173,14 @@ class Agent:
 
         save_model_freq = num_episodes // 10
 
-        return_list = []
         loss_list = []
 
+        self.algorithm.memory_reset()
         self.collect_memories(RND)
         for i in range(10):
             with tqdm(total=int(num_episodes / 10), desc=f"Iteration {i}") as pbar:
+
+                return_list = []
                 for episode in range(num_episodes // 10):
                     state, _ = env.reset()
 
@@ -218,15 +223,32 @@ class Agent:
                         #     self.algorithm.epsilon = 0.2
                         self.algorithm.epsilon = 1 / (1 + np.log2(np.mean(return_list[-10:]) + 1))
 
+                    # self.painter.plot_average_reward(episode_reward,
+                    #                                  window=1,
+                    #                                  title="{} on breakout".format(self.algorithm.NAME),
+                    #                                  curve_label="{}".format(
+                    #                                      self.algorithm.NAME + "RND" if RND else ""),
+                    #                                  color=self.colors[order - 1])
+
                     if (episode + 1) % 10 == 0:
                         pbar.set_postfix(
                             {
                                 "episode": f"{num_episodes / 10 * i + episode + 1}",
                                 "return of last 10 rounds": f"{np.mean(return_list[-10:]):3f}",
                                 "loss of last 10 rounds": f"{np.mean(loss_list[-10:]):9f}",
-                                "exploration": f"{self.algorithm.epsilon:6f}"
+                                "exploration": f"{self.algorithm.epsilon:6f}",
+                                "trained frame":f"{self.algorithm.frame_count}"
                             }
                         )
+                        self.painter.plot_average_reward_by_list(return_list,
+                                                                 window=1,
+                                                                 title="{} on breakout".format(self.algorithm.NAME),
+                                                                 curve_label="{}".format(
+                                                                     self.algorithm.NAME + "RND" if RND else ""),
+                                                                 color=self.colors[order - 1]
+                                                                 )
+                        return_list = []
+
                     if (num_episodes / 10 * i + episode + 1) % save_model_freq == 0:
                         torch.save({"main_net_state_dict": self.algorithm.main_net.state_dict(),
                                     "target_net_state_dict": self.algorithm.target_net.state_dict()},
@@ -235,15 +257,11 @@ class Agent:
                                                                                        "T" if RND else "F"))
 
                     pbar.update(1)
-        self.painter.plot_average_reward(return_list,
-                                         window=1,
-                                         title="{} on RoadRunner".format(self.algorithm.NAME),
-                                         curve_label="{}".format(self.algorithm.NAME + "RND" if RND else ""),
-                                         color=self.colors[order - 1])
+
         plt.legend()
         self.painter.plot_episode_reward(return_list,
                                          window=2,
-                                         title="{} on RoadRunner".format(self.algorithm.NAME),
+                                         title="{} on breakout".format(self.algorithm.NAME),
                                          curve_label="{}".format(self.algorithm.NAME + "RND" if RND else ""),
                                          color=self.colors[order - 1])
 
@@ -253,7 +271,7 @@ class Agent:
         self.env = env
         num_episodes = self.args.num_episodes
 
-        save_model_freq = num_episodes // 10
+        save_model_freq = num_episodes // 20
 
         return_list = []
         loss_list = []
@@ -276,6 +294,7 @@ class Agent:
                         # encoded_obs = self.preprocess(encoded_obs)
                         action = self.algorithm.select_action(encoded_obs)
                         s_prime, reward, done, _, _ = env.step(action)
+                        original_reward = reward
                         reward /= 200
 
                         if RND:
@@ -298,7 +317,9 @@ class Agent:
 
                     return_list.append(episode_reward)
                     loss_list.append(episode_loss)
-                    self.painter.plot_reward_test(episode_reward)
+
+                    if self.algorithm.epsilon > 0.01 and len(self.painter.return_list) > 0:
+                        self.algorithm.epsilon = 1 / (1 + np.log2((np.mean(return_list)) + 1))
 
                     if (episode + 1) % 10 == 0:
                         pbar.set_postfix(
@@ -309,26 +330,21 @@ class Agent:
                                 "exploration": f"{self.algorithm.epsilon:6f}"
                             }
                         )
+                        self.painter.plot_average_reward_by_list(return_list,
+                                                                 window=1,
+                                                                 title="{} on RoadRunner".format(self.algorithm.NAME),
+                                                                 curve_label="{}".format(
+                                                                     self.algorithm.NAME + "RND" if RND else ""),
+                                                                 color=self.colors[order - 1]
+                                                                 )
+                        return_list = []
                     if (num_episodes / 10 * i + episode + 1) % save_model_freq == 0:
                         torch.save({"main_net_state_dict": self.algorithm.main_net.state_dict(),
                                     "target_net_state_dict": self.algorithm.target_net.state_dict()},
                                    "./checkpoint/{}_model_RoadRunner_{}_{}.pth".format(self.algorithm.NAME,
                                                                                        num_episodes / 10 * i + episode + 1,
                                                                                        "T" if RND else "F"))
-                    if self.algorithm.epsilon > 0.01:
-                        self.algorithm.epsilon *= 0.9995
                     pbar.update(1)
-        # self.painter.plot_average_reward(return_list,
-        #                                  window=1,
-        #                                  title="{} on RoadRunner".format(self.algorithm.NAME),
-        #                                  curve_label="{} + RND".format(self.algorithm.NAME),
-        #                                  color=self.colors[order - 1])
-        # plt.legend()
-        # self.painter.plot_episode_reward(return_list,
-        #                                  window=2,
-        #                                  title="{} on RoadRunner".format(self.algorithm.NAME),
-        #                                  curve_label="{} + RND".format(self.algorithm.NAME),
-        #                                  color=self.colors[order - 1])
 
     def train(self, use_rnd=False, rnd_weight_decay=1.0, use_ngu=False, painter_label=1):
         RndNet = RNDNetwork()

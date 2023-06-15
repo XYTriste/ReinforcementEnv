@@ -145,9 +145,10 @@ class DQN_CNN:
         self.epsilon = self.args.epsilon
         self.learn_step_counter = 0
 
-        self.memory = ReplayBuffer(1000000, 4)
+        self.memory = ReplayBuffer(100000, 4)
         self.memory_counter = 0
         self.learn_frequency = 0  # 记录执行了多少次step方法，控制经验回放的速率
+        self.frame_count = 0    # 记录更新过多少帧
 
         self.main_net = CNN(self.INPUT_DIM, self.OUTPUT_DIM).to(self.device)
         self.target_net = CNN(self.INPUT_DIM, self.OUTPUT_DIM).to(self.device)
@@ -167,6 +168,11 @@ class DQN_CNN:
             action = self.main_net(state).argmax().item()
 
         return action
+
+    def memory_reset(self):
+        self.memory = ReplayBuffer(300000, 4)
+        self.memory_counter = 0
+        self.learn_frequency = 0
 
     def step(self, index, a, r, done) -> float:
         """
@@ -197,6 +203,8 @@ class DQN_CNN:
         batch_s, batch_s_prime = self.change_to_tensor(batch_s).to(self.device) / 255.0, self.change_to_tensor(batch_s_prime).to(self.device) / 255.0
         batch_a, batch_r = self.change_to_tensor(batch_a, dtype=torch.int64).to(self.device), self.change_to_tensor(batch_r).to(self.device)
         batch_done = self.change_to_tensor(batch_done, dtype=torch.int64).to(self.device)
+
+        self.frame_count += self.BATCH_SIZE
 
         estimated_q = self.main_net(batch_s)
         estimated_q = estimated_q.gather(1, batch_a)

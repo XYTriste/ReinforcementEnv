@@ -117,24 +117,40 @@ line, = ax.plot(x, y)
 # print("乘以0.9995多少次后小于0.01：", count)
 # # s = "123"
 # # print(s + "RND" if True else "")
-import numpy as np
+# import numpy as np
+# import matplotlib.pyplot as plt
+#
+# # 行为价值函数的二维数组
+# action_values = np.array([[0.1, 0.3, 0.2],
+#                           [0.2, 0.5, 0.3],
+#                           [0.3, 0.2, 0.1]])
+#
+# # 创建热力图对象
+# plt.imshow(action_values, cmap='hot')
+#
+# # 自定义标签和标题
+# plt.xlabel("Dealer's Card Value")
+# plt.ylabel("Player's Sum")
+# plt.title("Action Value Function")
+#
+# # 添加颜色条
+# plt.colorbar()
+#
+# # 显示热力图
+# plt.show()
+
 import matplotlib.pyplot as plt
-
-# 行为价值函数的二维数组
-action_values = np.array([[0.1, 0.3, 0.2],
-                          [0.2, 0.5, 0.3],
-                          [0.3, 0.2, 0.1]])
-
-# 创建热力图对象
-plt.imshow(action_values, cmap='hot')
-
-# 自定义标签和标题
-plt.xlabel("Dealer's Card Value")
-plt.ylabel("Player's Sum")
-plt.title("Action Value Function")
-
-# 添加颜色条
-plt.colorbar()
-
-# 显示热力图
+x = list(range(1, 21))  # epoch array
+loss = [2 / (i**2) for i in x]  # loss values array
+plt.ion()
+for i in range(1, len(x)):
+    ix = x[:i]
+    iy = loss[:i]
+    plt.cla()
+    plt.title("loss")
+    plt.plot(ix, iy)
+    plt.xlabel("epoch")
+    plt.ylabel("loss")
+    plt.pause(0.5)
+plt.ioff()
 plt.show()

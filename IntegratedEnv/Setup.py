@@ -77,30 +77,31 @@ def montezuma_revenge():
 def breakout():
     args = SetupArgs().get_args()
 
-    args.num_episodes = 2000
+    args.num_episodes = 20000
     args.INPUT_DIM = 4
     args.HIDDEN_DIM = 128
     args.OUTPUT_DIM = 4
     args.HIDDEN_DIM_NUM = 5
 
-    # checkpoint = torch.load('./checkpoint/DQN_model_breakout_450.0.pth')
+    checkpoint = torch.load('./checkpoint/DQN_model_breakout_5000.0_F.pth')
 
     dqn = DQN_CNN(args)
     double_dqn = DQN_CNN(args, NAME="DDQN")
-    double_dqn.main_net.load_state_dict(dqn.main_net.state_dict())
-    double_dqn.target_net.load_state_dict(dqn.target_net.state_dict())
+    # double_dqn.main_net.load_state_dict(dqn.main_net.state_dict())
+    # double_dqn.target_net.load_state_dict(dqn.target_net.state_dict())
     # double_dqn.main_net.load_state_dict(checkpoint['main_net_state_dict'])
     # double_dqn.target_net.load_state_dict(checkpoint['target_net_state_dict'])
-    agent1 = Agent(args, dqn)
-    agent1.train_breakout()
+    # agent1 = Agent(args, dqn)
+    # agent1.train_breakout()
+    # agent1.train_breakout(order=2)
 
     agent2 = Agent(args, double_dqn)
-    agent2.train_breakout(RND=True, order=2)
+    agent2.train_breakout(RND=False, order=1)
 
     torch.save({"main_net_state_dict": dqn.main_net.state_dict(),
-                "target_net_state_dict": dqn.target_net.state_dict()}, "dqn_model_RoadRunner_final.pth")
+                "target_net_state_dict": dqn.target_net.state_dict()}, "dqn_model_breakout_final.pth")
     torch.save({"main_net_state_dict": double_dqn.main_net.state_dict(),
-                "target_net_state_dict": double_dqn.target_net.state_dict()}, "DDQN_model_RoadRunner_final.pth")
+                "target_net_state_dict": double_dqn.target_net.state_dict()}, "DDQN_model_breakout_final.pth")
     plt.show()
 
 
@@ -125,7 +126,7 @@ def RoadRunner():
     agent1.train_RoadRunner()
 
     agent2 = Agent(args, double_dqn)
-    agent2.train_breakout(RND=True, order=2)
+    agent2.train_RoadRunner(RND=True, order=2)
 
     torch.save({"main_net_state_dict": dqn.main_net.state_dict(),
                 "target_net_state_dict": dqn.target_net.state_dict()}, "dqn_model_RoadRunner_final.pth")
@@ -135,4 +136,4 @@ def RoadRunner():
 
 
 if __name__ == "__main__":
-    breakout()
+    RoadRunner()
