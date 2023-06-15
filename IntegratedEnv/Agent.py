@@ -166,10 +166,21 @@ class Agent:
 
             last_obs = obs
 
-    def train_breakout(self, RND=False, NGU=False, *, rnd_weight_decay=1.0, painter_label=1, PRE_PROCESS=True, order=1):
+    def train_breakout(self,
+                       RND=False,
+                       NGU=False,
+                       *,
+                       rnd_weight_decay=1.0,
+                       painter_label=1,
+                       PRE_PROCESS=True,
+                       order=1,
+                       test=False):
+
         env = gymnasium.make("ALE/Breakout-v5")
         self.env = env
         num_episodes = self.args.num_episodes
+        if test:
+            self.algorithm.epsilon = 0.001
 
         save_model_freq = num_episodes // 10
 
@@ -217,7 +228,7 @@ class Agent:
 
                     return_list.append(episode_reward)
                     loss_list.append(episode_loss)
-                    if self.algorithm.epsilon > 0.01:
+                    if self.algorithm.epsilon > 0.01 and not test:
                         # self.algorithm.epsilon *= 0.997
                         # if np.mean(return_list[-10:]) < 10.0 and self.algorithm.epsilon < 0.2:
                         #     self.algorithm.epsilon = 0.2
@@ -249,7 +260,7 @@ class Agent:
                                                                  )
                         return_list = []
 
-                    if (num_episodes / 10 * i + episode + 1) % save_model_freq == 0:
+                    if (num_episodes / 10 * i + episode + 1) % save_model_freq == 0 and not test:
                         torch.save({"main_net_state_dict": self.algorithm.main_net.state_dict(),
                                     "target_net_state_dict": self.algorithm.target_net.state_dict()},
                                    "./checkpoint/{}_model_breakout_{}_{}.pth".format(self.algorithm.NAME,
@@ -265,18 +276,30 @@ class Agent:
                                          curve_label="{}".format(self.algorithm.NAME + "RND" if RND else ""),
                                          color=self.colors[order - 1])
 
-    def train_RoadRunner(self, RND=False, NGU=False, *, rnd_weight_decay=1.0, painter_label=1, PRE_PROCESS=True,
-                         order=1):
+    def train_RoadRunner(self, RND=False,
+                         NGU=False,
+                         *,
+                         rnd_weight_decay=1.0,
+                         painter_label=1,
+                         PRE_PROCESS=True,
+                         order=1,
+                         test=False):
+
         env = gymnasium.make("ALE/RoadRunner-v5")
         self.env = env
         num_episodes = self.args.num_episodes
+        if test:
+            self.algorithm.epsilon = 0.001
 
         save_model_freq = num_episodes // 20
 
         return_list = []
         loss_list = []
+        if test:
+            env = gymnasium.make("ALE/RoadRunner-v5", render_mode="human")
+        else:
+            self.collect_memories(RND)
 
-        self.collect_memories(RND)
         for i in range(10):
             with tqdm(total=int(num_episodes / 10), desc=f"Iteration {i}") as pbar:
                 for episode in range(num_episodes // 10):
@@ -318,7 +341,7 @@ class Agent:
                     return_list.append(episode_reward)
                     loss_list.append(episode_loss)
 
-                    if self.algorithm.epsilon > 0.01 and len(self.painter.return_list) > 0:
+                    if self.algorithm.epsilon > 0.01 and len(self.painter.return_list) > 0 and not test:
                         self.algorithm.epsilon = 1 / (1 + np.log2((np.mean(return_list)) + 1))
 
                     if (episode + 1) % 10 == 0:

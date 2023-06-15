@@ -69,7 +69,7 @@ class AlphaMCControl:
         reward_list = []
         train_rounds = 0
         player_win, dealer_win, draw = 0, 0, 0
-        while train_rounds < 3000000 or (train_rounds < 3000000 and player_win / train_rounds < 44.0):
+        while train_rounds < 30000000 or (train_rounds < 30000000 and player_win / train_rounds < 44.0):
             if train_rounds % 100000 == 0 and train_rounds > 0:
                 print("Train {} rounds.  win rate:{:4f}%".format(train_rounds, player_win / train_rounds))
             state, _ = self.env.reset()
@@ -96,7 +96,7 @@ class AlphaMCControl:
             train_rounds += 1
             reward_list.append(episode_reward)
             self.update_Q(episode_data)
-        self.plot_reward(reward_list, 1)
+        #self.plot_reward(reward_list, 1)
 
     def test(self, num_episodes):
         player_win_count = 0
