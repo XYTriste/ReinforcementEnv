@@ -48,7 +48,7 @@ def blackjack_actor_critic():
     args.SIZEOF_EVERY_MEMORY = 7
     args.MEMORY_SHAPE = (2, 1, 1, 2, 1)
 
-    env = gym.make(args.env_name, render_mode="rgb_array")
+    env = gymnasium.make(args.env_name, render_mode="rgb_array")
 
     ac = Actor_Critic(args)
 
@@ -98,42 +98,45 @@ def breakout():
     agent2.train_breakout(RND=True, order=2)
 
     torch.save({"main_net_state_dict": dqn.main_net.state_dict(),
-                "target_net_state_dict": dqn.target_net.state_dict()}, "dqn_model_RoadRunner_final.pth")
+                "target_net_state_dict": dqn.target_net.state_dict()}, "checkpoint/dqn_model_breakout_final.pth")
     torch.save({"main_net_state_dict": double_dqn.main_net.state_dict(),
-                "target_net_state_dict": double_dqn.target_net.state_dict()}, "DDQN_model_RoadRunner_final.pth")
+                "target_net_state_dict": double_dqn.target_net.state_dict()},
+               "checkpoint/DDQN_model_breakout_final.pth")
     plt.show()
 
 
 def RoadRunner():
     args = SetupArgs().get_args()
 
-    args.num_episodes = 5000
+    args.num_episodes = 10000
     args.INPUT_DIM = 4
     args.HIDDEN_DIM = 128
     args.OUTPUT_DIM = 18
     args.HIDDEN_DIM_NUM = 5
 
-    checkpoint = torch.load('./checkpoint/DQN_model_Roadrunner_5000.0.pth')
+    dqn_checkpoint = torch.load('./checkpoint/dqn_model_RoadRunner_final.pth')
+
 
     dqn = DQN_CNN(args)
     double_dqn = DQN_CNN(args, NAME="DDQN")
 
-    double_dqn.main_net.load_state_dict(dqn.main_net.state_dict())
-    double_dqn.target_net.load_state_dict(dqn.target_net.state_dict())
-    # double_dqn.main_net.load_state_dict(checkpoint['main_net_state_dict'])
-    # double_dqn.target_net.load_state_dict(checkpoint['target_net_state_dict'])
-    dqn.main_net.load_state_dict(checkpoint['main_net_state_dict'])
-    dqn.target_net.load_state_dict(checkpoint['target_net_state_dict'])
-    agent1 = Agent(args, dqn)
-    agent1.train_RoadRunner(test=True)
+    # double_dqn.main_net.load_state_dict(dqn.main_net.state_dict())
+    # double_dqn.target_net.load_state_dict(dqn.target_net.state_dict())
+    # double_dqn.main_net.load_state_dict(dqn_checkpoint['main_net_state_dict'])
+    # double_dqn.target_net.load_state_dict(dqn_checkpoint['target_net_state_dict'])
+    # dqn.main_net.load_state_dict(dqn_checkpoint['main_net_state_dict'])
+    # dqn.target_net.load_state_dict(dqn_checkpoint['target_net_state_dict'])
+    # agent1 = Agent(args, dqn)
+    # agent1.train_RoadRunner()
+    # torch.save({"main_net_state_dict": dqn.main_net.state_dict(),
+    #             "target_net_state_dict": dqn.target_net.state_dict()}, "checkpoint/dqn_model_RoadRunner_final.pth")
 
     agent2 = Agent(args, double_dqn)
-    agent2.train_breakout(RND=True, order=2)
+    agent2.train_RoadRunner(RND=True, order=2)
 
-    torch.save({"main_net_state_dict": dqn.main_net.state_dict(),
-                "target_net_state_dict": dqn.target_net.state_dict()}, "dqn_model_RoadRunner_final.pth")
     torch.save({"main_net_state_dict": double_dqn.main_net.state_dict(),
-                "target_net_state_dict": double_dqn.target_net.state_dict()}, "DDQN_model_RoadRunner_final.pth")
+                "target_net_state_dict": double_dqn.target_net.state_dict()},
+               "checkpoint/DDQN_model_RoadRunner_final.pth")
     plt.show()
 
 

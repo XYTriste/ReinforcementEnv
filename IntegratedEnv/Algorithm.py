@@ -138,14 +138,15 @@ class DQN_CNN:
         self.OUTPUT_DIM = args.OUTPUT_DIM  # 输出层的大小
         self.HIDDEN_DIM_NUM = args.HIDDEN_DIM_NUM  # 隐藏层的数量
 
-        self.TARGET_REPLACE_ITER = 10000
+        self.TARGET_REPLACE_ITER = 250
         self.LR = self.args.lr
-        self.BATCH_SIZE = 32
+        self.BATCH_SIZE = 128
 
         self.epsilon = self.args.epsilon
         self.learn_step_counter = 0
 
-        self.memory = ReplayBuffer(100000, 4)
+        self.memory_size = 2 ** 18
+        self.memory = ReplayBuffer(self.memory_size, 4)
         self.memory_counter = 0
         self.learn_frequency = 0  # 记录执行了多少次step方法，控制经验回放的速率
         self.frame_count = 0    # 记录更新过多少帧
@@ -156,7 +157,7 @@ class DQN_CNN:
         self.target_net.eval()
 
         self.optimizer = torch.optim.Adam(self.main_net.parameters(), lr=self.LR)  # 网络参数优化
-        self.loss_func = nn.HuberLoss()  # 损失函数，默认使用均方误差损失函数
+        self.loss_func = nn.MSELoss()  # 损失函数，默认使用均方误差损失函数
 
     @torch.no_grad()
     def select_action(self, state):
@@ -170,7 +171,7 @@ class DQN_CNN:
         return action
 
     def memory_reset(self):
-        self.memory = ReplayBuffer(300000, 4)
+        self.memory = ReplayBuffer(self.memory_size, 4)
         self.memory_counter = 0
         self.learn_frequency = 0
 
@@ -215,7 +216,7 @@ class DQN_CNN:
             best_actions = torch.argmax(q_values_prime, dim=1)
             q_target = self.target_net(batch_s_prime).detach()
 
-        y = batch_r + self.args.gamma * q_target.max(1)[0].view(self.BATCH_SIZE, 1) * (1 - batch_done)
+        y = batch_r + self.args.gamma * q_target.max(1)[0].view(self.BATCH_SIZE, 1) * ((1 - batch_done).unsqueeze(1))
         loss = self.loss_func(estimated_q, y)
 
         self.optimizer.zero_grad()

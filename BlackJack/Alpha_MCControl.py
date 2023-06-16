@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 
+
 class AlphaMCControl:
     def __init__(self, env, alpha, epsilon, gamma):
         self.env = env
@@ -96,7 +97,7 @@ class AlphaMCControl:
             train_rounds += 1
             reward_list.append(episode_reward)
             self.update_Q(episode_data)
-        #self.plot_reward(reward_list, 1)
+        # self.plot_reward(reward_list, 1)
 
     def test(self, num_episodes):
         player_win_count = 0
@@ -132,8 +133,8 @@ class AlphaMCControl:
         print("Play with dealer {} rounds. Player win rate:{:5f} "
               "Player not lose rate: {:5f}"
               "  dealer win rate: {:5f}   principal:{}".format(num_episodes, player_win_count / num_episodes,
-                                                (num_episodes - dealer_win_count) / num_episodes,
-                                                dealer_win_count / num_episodes, principal))
+                                                               (num_episodes - dealer_win_count) / num_episodes,
+                                                               dealer_win_count / num_episodes, principal))
 
 
 # 使用示例
@@ -158,7 +159,7 @@ for i in range(21, 10, -1):
     action_array.append(lis)
 action_values = np.array(action_array)
 fig, ax = plt.subplots(figsize=(6, 6))
-colors = [(0, 'red'),  (1, 'green')]
+colors = [(0, 'red'), (1, 'green')]
 cmap = LinearSegmentedColormap.from_list('custom_cmap', colors)
 heatmap = ax.imshow(action_values, cmap=cmap, vmin=0, vmax=1, extent=[1, 10, 11, 21])
 

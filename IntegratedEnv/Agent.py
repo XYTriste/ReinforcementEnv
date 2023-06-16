@@ -142,24 +142,24 @@ class Agent:
     def collect_memories(self, RND=False):
         last_obs, _ = self.env.reset()
         for step in tqdm(range(self.algorithm.memory.learning_starts)):
-            last_obs = self.preprocess(last_obs)
+            last_obs = self.preprocess(last_obs) / 255.
             cur_index = self.algorithm.memory.store_memory_obs(last_obs)
             encoded_obs = self.algorithm.memory.encoder_recent_observation()
             # choose action randomly
             action = self.env.action_space.sample()
             # interact with env
             obs, reward, done, info, _ = self.env.step(action)
-            # reward /= 200
+            reward /= 200
 
             if RND:
                 predict, target = self.rnd(encoded_obs)
-                intrinsic_reward = self.rnd.get_intrinsic_reward(predict, target, CALC=False)
+                intrinsic_reward = self.rnd.get_intrinsic_reward(predict, target, CALC=False).item()
                 update_reward = (1 - self.rnd_weight) * reward + self.rnd_weight * intrinsic_reward
             else:
                 update_reward = reward
 
             # store other info
-            self.algorithm.memory.store_memory_effect(cur_index, action, reward, done)
+            self.algorithm.memory.store_memory_effect(cur_index, action, update_reward, done)
 
             if done:
                 last_obs, _ = self.env.reset()
@@ -182,7 +182,7 @@ class Agent:
         if test:
             self.algorithm.epsilon = 0.001
 
-        save_model_freq = num_episodes // 10
+        save_model_freq = num_episodes // 5
 
         loss_list = []
 
@@ -193,7 +193,7 @@ class Agent:
 
                 return_list = []
                 for episode in range(num_episodes // 10):
-                    state, _ = env.reset()
+                    state, info = env.reset()
 
                     episode_reward = 0
                     episode_loss = 0
@@ -248,7 +248,7 @@ class Agent:
                                 "return of last 10 rounds": f"{np.mean(return_list[-10:]):3f}",
                                 "loss of last 10 rounds": f"{np.mean(loss_list[-10:]):9f}",
                                 "exploration": f"{self.algorithm.epsilon:6f}",
-                                "trained frame":f"{self.algorithm.frame_count}"
+                                "frame count":f"{info['frames']}"
                             }
                         )
                         self.painter.plot_average_reward_by_list(return_list,
@@ -298,27 +298,28 @@ class Agent:
         if test:
             env = gymnasium.make("ALE/RoadRunner-v5", render_mode="human")
         else:
+            self.algorithm.memory_reset()
             self.collect_memories(RND)
 
         for i in range(10):
             with tqdm(total=int(num_episodes / 10), desc=f"Iteration {i}") as pbar:
                 for episode in range(num_episodes // 10):
-                    state, _ = env.reset()
+                    state, info = env.reset()
 
                     episode_reward = 0
                     episode_loss = 0
 
                     done = False
                     while not done:
-                        state = self.preprocess(state)
+                        state = self.preprocess(state) / 255.
                         current_index = self.algorithm.memory.store_memory_obs(state)
                         encoded_obs = self.algorithm.memory.encoder_recent_observation()
-                        # # encoded_obs = torch.from_numpy(encoded_obs).unsqueeze(0).to(torch.float32) / 255.0
-                        # encoded_obs = self.preprocess(encoded_obs)
+                        # encoded_obs = self.preprocess(encoded_obs).to(self.algorithm.device) / 255.
                         action = self.algorithm.select_action(encoded_obs)
                         s_prime, reward, done, _, _ = env.step(action)
-                        original_reward = reward
                         reward /= 200
+                        # if reward == 0:
+                        #     reward = 0.01
 
                         if RND:
                             predict, target = self.rnd(encoded_obs)
@@ -328,8 +329,8 @@ class Agent:
                         else:
                             update_reward = reward
 
-                        if self.rnd_weight > 0.001:
-                            self.rnd_weight *= 0.9995
+                        # if self.rnd_weight > 0.001:
+                        #     self.rnd_weight *= 0.9995
 
                         loss = self.algorithm.step(current_index, action, update_reward, done)
 
@@ -350,7 +351,8 @@ class Agent:
                                 "episode": f"{num_episodes / 10 * i + episode + 1}",
                                 "return of last 10 rounds": f"{np.mean(return_list[-10:]):3f}",
                                 "loss of last 10 rounds": f"{np.mean(loss_list[-10:]):9f}",
-                                "exploration": f"{self.algorithm.epsilon:6f}"
+                                "exploration": f"{self.algorithm.epsilon:6f}",
+                                "info": f"{info}"
                             }
                         )
                         self.painter.plot_average_reward_by_list(return_list,
