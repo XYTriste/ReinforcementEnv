@@ -21,11 +21,24 @@ for i in range(2, 21):
     for j in range(1, 11):
         prob[i, j] = player_prob[i - 1] * dealer_prob[j]
 # print(sum(prob.values()))
-print("Monte Carlo:")
+print("Sarsa:")
 for round in rounds:
-    agent.monte_carlo_algorithm(rounds=round, epsilon=0.01)
+    agent.Q_learning_algorithm(rounds=round, epsilon=0.01)
     # print("Training complete")
-    info = agent.play_with_dealer()
+    #info = agent.play_with_dealer()
+    agent.calc_state_value()
+    expectation_by_train = np.dot(np.array(list(prob.values())), np.array(
+        list(agent.state_value_function.values())[:190]))
+    #info = agent.play_with_dealer(use_best_policy=True)
+    agent.Q_learning_algorithm(rounds=round, epsilon=0.01, use_best_policy=True)
+    agent.calc_state_value()
+    expectation_by_calc = np.dot(np.array(list(prob.values())), np.array(
+        list(agent.state_value_function.values())[:190]))
+    print("使用epsilon greedy策略训练{}回合， 起始状态价值的期望:{:6f}".format(round, expectation_by_train))
+    print("使用最优策略训练{}回合， 起始状态价值的期望:{:6f}".format(round, expectation_by_calc))
+    print("绝对误差为:{:4f},  相对误差为:{:4f}, 相对性能提升约:{:4f}%".format(expectation_by_calc - expectation_by_train,
+                                                                             (expectation_by_calc - expectation_by_train) / expectation_by_calc,
+                                                                             (expectation_by_calc - expectation_by_train) / expectation_by_calc * 100))
     # print("Player win rate: {:.2f}%   Dealer win rate:{:.2f}%   Not lose rate:{:.2f}%"
     #       .format(info[0] / round * 100, info[1] / round * 100, (round - info[1]) / round * 100))
     # for i in range(2, 21):
@@ -33,9 +46,9 @@ for round in rounds:
     #         for k in range(2):
     #             print("({}, {}, {}) = {:5f}".format(i, j, k, agent.action_value_function[i, j, False][k]), end="  ")
     #         print()
-    agent.calc_state_value()
+
     # for i in range(2, 22):
     #     for j in range(1, 11):
     #         print("({}, {}) = {}".format(i, j, agent.state_value_function[i, j]))
 
-    print("训练{}回合， 起始状态价值的期望:{:6f}".format(round, np.dot(np.array(list(prob.values())), np.array(list(agent.state_value_function.values())[:190]))))
+
