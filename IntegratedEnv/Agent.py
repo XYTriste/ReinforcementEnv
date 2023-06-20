@@ -3,9 +3,12 @@
 # Author: Yu Xia
 # @File: Agent.py
 # @software: PyCharm
+import math
+
 import gymnasium
 import torch
 from matplotlib import pyplot as plt
+from sympy import Piecewise
 from tqdm import tqdm
 import numpy as np
 from Tools import Painter
@@ -46,6 +49,12 @@ class Agent:
             transforms.Resize((84, 84)),
             transforms.ToTensor(),
         ])
+        # self.exploration_coefficient = Piecewise(
+        #     [
+        #         (0, 1.0),
+        #         (500, 0.1),
+        #         (35000, 0.01)
+        #     ], outside_value=0.01)
 
     def train_montezuma(self, RND=False, NGU=False, *, rnd_weight_decay=1.0, painter_label=1, PRE_PROCESS=True):
         env = gymnasium.make("ALE/MontezumaRevenge-v5")
@@ -149,7 +158,7 @@ class Agent:
             action = self.env.action_space.sample()
             # interact with env
             obs, reward, done, info, _ = self.env.step(action)
-            reward /= 200
+            reward /= 100
 
             if RND:
                 predict, target = self.rnd(encoded_obs)
@@ -288,11 +297,12 @@ class Agent:
         env = gymnasium.make("ALE/RoadRunner-v5")
         self.env = env
         num_episodes = self.args.num_episodes
-        if test:
-            self.algorithm.epsilon = 0.001
+        # if test:
+        #     self.algorithm.epsilon = 0.001
 
         save_model_freq = num_episodes // 20
 
+        all_return_list = []
         return_list = []
         loss_list = []
         if test:
@@ -317,7 +327,7 @@ class Agent:
                         # encoded_obs = self.preprocess(encoded_obs).to(self.algorithm.device) / 255.
                         action = self.algorithm.select_action(encoded_obs)
                         s_prime, reward, done, _, _ = env.step(action)
-                        reward /= 200
+                        reward /= 100
                         # if reward == 0:
                         #     reward = 0.01
 
@@ -339,17 +349,24 @@ class Agent:
 
                         state = s_prime
 
+                    all_return_list.append(episode_reward)
                     return_list.append(episode_reward)
                     loss_list.append(episode_loss)
 
-                    if self.algorithm.epsilon > 0.01 and len(self.painter.return_list) > 0 and not test:
-                        self.algorithm.epsilon = 1 / (1 + np.log2((np.mean(return_list)) + 1))
+                    if self.algorithm.epsilon > 0.01 and len(self.painter.return_list) > 0:
+                        # self.algorithm.epsilon = 1 / (1 + ((np.log((np.mean(all_return_list[-10:])))) + 1))
+                        if num_episodes / 10 * i + episode + 1 < 5000:
+                            self.algorithm.epsilon *= 0.9995
+                        elif num_episodes / 10 * i + episode + 1 < 25000:
+                            self.algorithm.epsilon = 0.1
+                        else:
+                            self.algorithm.epsilon = 0.01
 
                     if (episode + 1) % 10 == 0:
                         pbar.set_postfix(
                             {
                                 "episode": f"{num_episodes / 10 * i + episode + 1}",
-                                "return of last 10 rounds": f"{np.mean(return_list[-10:]):3f}",
+                                "return of last 10 rounds": f"{np.mean(all_return_list[-10:]):3f}",
                                 "loss of last 10 rounds": f"{np.mean(loss_list[-10:]):9f}",
                                 "exploration": f"{self.algorithm.epsilon:6f}",
                                 "info": f"{info}"
@@ -367,7 +384,7 @@ class Agent:
                         torch.save({"main_net_state_dict": self.algorithm.main_net.state_dict(),
                                     "target_net_state_dict": self.algorithm.target_net.state_dict()},
                                    "./checkpoint/{}_model_RoadRunner_{}_{}.pth".format(self.algorithm.NAME,
-                                                                                       num_episodes / 10 * i + episode + 1,
+                                                                                       20000 + (num_episodes / 10 * i + episode + 1),
                                                                                        "T" if RND else "F"))
                     pbar.update(1)
 

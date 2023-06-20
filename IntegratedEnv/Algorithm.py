@@ -140,12 +140,12 @@ class DQN_CNN:
 
         self.TARGET_REPLACE_ITER = 250
         self.LR = self.args.lr
-        self.BATCH_SIZE = 128
+        self.BATCH_SIZE = 32
 
         self.epsilon = self.args.epsilon
         self.learn_step_counter = 0
 
-        self.memory_size = 2 ** 18
+        self.memory_size = 2 ** 16
         self.memory = ReplayBuffer(self.memory_size, 4)
         self.memory_counter = 0
         self.learn_frequency = 0  # 记录执行了多少次step方法，控制经验回放的速率

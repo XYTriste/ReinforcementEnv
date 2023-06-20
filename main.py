@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from sympy import Piecewise
 
 # 创建初始的空曲线
 x = []
@@ -154,5 +155,8 @@ line, = ax.plot(x, y)
 #     plt.pause(0.5)
 # plt.ioff()
 # plt.show()
-dic = {'lives': 3, 'episode_frame_number': 0, 'frame_number': 0}
-print(dic)
+exploration_coefficient = Piecewise(
+                (0, 1.0),
+                (500, 0.1),
+                (35000, 0.01), outside_value=0.01)
+print(exploration_coefficient.subs(250, 260))

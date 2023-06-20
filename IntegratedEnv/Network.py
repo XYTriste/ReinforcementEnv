@@ -14,6 +14,7 @@ torch.FloatTensor = torch.cuda.FloatTensor if torch.cuda.is_available() else tor
 # ，数据将转移到GPU执行
 torch.LongTensor = torch.cuda.LongTensor if torch.cuda.is_available() else torch.LongTensor
 
+
 class Net(nn.Module):
     def __init__(self, INPUT_DIM, HIDDEN_DIM, OUTPUT_DIM, HIDDEN_LAYERS_NUM=1):
         super(Net, self).__init__()
@@ -148,6 +149,7 @@ class RNDNetwork(nn.Module):
 
         self.sum_error += data
 
+
 class RNDNetwork_CNN(nn.Module):
     """
     该类基于随机网络蒸馏(Random Network Distillation, RND)的思想，基于预测误差给予智能体一定的内在奖励。
@@ -160,7 +162,7 @@ class RNDNetwork_CNN(nn.Module):
         self.HIDDEN_DIM = args.HIDDEN_DIM  # 隐藏层的大小
         self.OUTPUT_DIM = args.OUTPUT_DIM  # 输出层的大小
         self.HIDDEN_DIM_NUM = args.HIDDEN_DIM_NUM
-        self.LR = 0.001
+        self.LR = 1e-5
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.predictor = CNN(self.INPUT_DIM, self.OUTPUT_DIM).to(self.device)

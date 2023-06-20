@@ -108,13 +108,13 @@ def breakout():
 def RoadRunner():
     args = SetupArgs().get_args()
 
-    args.num_episodes = 10000
+    args.num_episodes = 50000
     args.INPUT_DIM = 4
     args.HIDDEN_DIM = 128
     args.OUTPUT_DIM = 18
     args.HIDDEN_DIM_NUM = 5
 
-    dqn_checkpoint = torch.load('./checkpoint/dqn_model_RoadRunner_final.pth')
+    dqn_checkpoint = torch.load('./checkpoint/DQN_model_RoadRunner_25000.0_F.pth')
 
 
     dqn = DQN_CNN(args)
@@ -124,19 +124,19 @@ def RoadRunner():
     # double_dqn.target_net.load_state_dict(dqn.target_net.state_dict())
     # double_dqn.main_net.load_state_dict(dqn_checkpoint['main_net_state_dict'])
     # double_dqn.target_net.load_state_dict(dqn_checkpoint['target_net_state_dict'])
-    # dqn.main_net.load_state_dict(dqn_checkpoint['main_net_state_dict'])
-    # dqn.target_net.load_state_dict(dqn_checkpoint['target_net_state_dict'])
-    # agent1 = Agent(args, dqn)
-    # agent1.train_RoadRunner()
-    # torch.save({"main_net_state_dict": dqn.main_net.state_dict(),
-    #             "target_net_state_dict": dqn.target_net.state_dict()}, "checkpoint/dqn_model_RoadRunner_final.pth")
+    dqn.main_net.load_state_dict(dqn_checkpoint['main_net_state_dict'])
+    dqn.target_net.load_state_dict(dqn_checkpoint['target_net_state_dict'])
+    agent1 = Agent(args, dqn)
+    agent1.train_RoadRunner()
+    torch.save({"main_net_state_dict": dqn.main_net.state_dict(),
+                "target_net_state_dict": dqn.target_net.state_dict()}, "checkpoint/dqn_model_RoadRunner_70000_final.pth")
 
-    agent2 = Agent(args, double_dqn)
-    agent2.train_RoadRunner(RND=True, order=2)
-
-    torch.save({"main_net_state_dict": double_dqn.main_net.state_dict(),
-                "target_net_state_dict": double_dqn.target_net.state_dict()},
-               "checkpoint/DDQN_model_RoadRunner_final.pth")
+    # agent2 = Agent(args, double_dqn)
+    # agent2.train_RoadRunner(RND=False, order=2)
+    #
+    # torch.save({"main_net_state_dict": double_dqn.main_net.state_dict(),
+    #             "target_net_state_dict": double_dqn.target_net.state_dict()},
+    #            "checkpoint/DDQN_model_RoadRunner_final.pth")
     plt.show()
 
 
