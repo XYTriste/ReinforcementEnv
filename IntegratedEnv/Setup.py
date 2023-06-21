@@ -114,7 +114,7 @@ def RoadRunner():
     args.OUTPUT_DIM = 18
     args.HIDDEN_DIM_NUM = 5
 
-    dqn_checkpoint = torch.load('./checkpoint/DQN_model_RoadRunner_25000.0_F.pth')
+    dqn_checkpoint = torch.load('./checkpoint/dqn_model_RoadRunner_70000_final.pth.')
 
 
     dqn = DQN_CNN(args)
@@ -127,7 +127,7 @@ def RoadRunner():
     dqn.main_net.load_state_dict(dqn_checkpoint['main_net_state_dict'])
     dqn.target_net.load_state_dict(dqn_checkpoint['target_net_state_dict'])
     agent1 = Agent(args, dqn)
-    agent1.train_RoadRunner()
+    agent1.train_RoadRunner(test=True)
     torch.save({"main_net_state_dict": dqn.main_net.state_dict(),
                 "target_net_state_dict": dqn.target_net.state_dict()}, "checkpoint/dqn_model_RoadRunner_70000_final.pth")
 

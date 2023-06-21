@@ -6,7 +6,8 @@ from BlackJackAgent import *
 
 env = gymnasium.make("Blackjack-v1", render_mode="rgb_array")
 agent = BlackJackAgent(env)
-rounds = [100000, 1000000, 10000000]
+# rounds = [100000, 1000000, 10000000]
+rounds = [30000000]
 deck = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10]
 player_prob = [0, 0.005917159763313609, 0.011834319526627219, 0.01775147928994083, 0.023668639053254437,
                0.029585798816568046,
@@ -21,7 +22,7 @@ for i in range(2, 21):
     for j in range(1, 11):
         prob[i, j] = player_prob[i - 1] * dealer_prob[j]
 # print(sum(prob.values()))
-print("Sarsa:")
+print("Q learning:")
 for round in rounds:
     agent.Q_learning_algorithm(rounds=round, epsilon=0.01)
     # print("Training complete")
