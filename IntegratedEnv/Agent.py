@@ -33,6 +33,21 @@ def random_init(agent, cnn_model, env: gymnasium.Env, rnd: RNDNetwork):
         state = cnn_model(state).squeeze(0)
 
 
+def segmentation_epsilon(all_rounds, train_rounds):
+    """
+    尚未完成，一种调节epsilon的分段函数。
+    :param all_rounds:
+    :param train_rounds:
+    :return:
+    """
+    if train_rounds < all_rounds / 40:
+        return 1
+    elif all_rounds / 40 <= train_rounds < all_rounds / 2:
+        return
+    else:
+        return 0.01
+
+
 class Agent:
     def __init__(self, args, algorithm=None, env=None):
         self.algorithm = algorithm
@@ -150,6 +165,7 @@ class Agent:
 
     def collect_memories(self, RND=False):
         last_obs, _ = self.env.reset()
+        last_obs = last_obs[105:180][:]
         for step in tqdm(range(self.algorithm.memory.learning_starts)):
             last_obs = self.preprocess(last_obs) / 255.
             cur_index = self.algorithm.memory.store_memory_obs(last_obs)
@@ -158,8 +174,8 @@ class Agent:
             action = self.env.action_space.sample()
             # interact with env
             obs, reward, done, info, _ = self.env.step(action)
+            obs = obs[105:180][:]
             reward /= 100
-
             if RND:
                 predict, target = self.rnd(encoded_obs)
                 intrinsic_reward = self.rnd.get_intrinsic_reward(predict, target, CALC=False).item()
@@ -172,6 +188,7 @@ class Agent:
 
             if done:
                 last_obs, _ = self.env.reset()
+                last_obs = last_obs[105:180][:]
 
             last_obs = obs
 
@@ -257,7 +274,7 @@ class Agent:
                                 "return of last 10 rounds": f"{np.mean(return_list[-10:]):3f}",
                                 "loss of last 10 rounds": f"{np.mean(loss_list[-10:]):9f}",
                                 "exploration": f"{self.algorithm.epsilon:6f}",
-                                "frame count":f"{info['frames']}"
+                                "frame count": f"{info['frames']}"
                             }
                         )
                         self.painter.plot_average_reward_by_list(return_list,
@@ -273,8 +290,8 @@ class Agent:
                         torch.save({"main_net_state_dict": self.algorithm.main_net.state_dict(),
                                     "target_net_state_dict": self.algorithm.target_net.state_dict()},
                                    "./checkpoint/{}_model_breakout_{}_{}.pth".format(self.algorithm.NAME,
-                                                                                       num_episodes / 10 * i + episode + 1,
-                                                                                       "T" if RND else "F"))
+                                                                                     num_episodes / 10 * i + episode + 1,
+                                                                                     "T" if RND else "F"))
 
                     pbar.update(1)
 
@@ -297,8 +314,8 @@ class Agent:
         env = gymnasium.make("ALE/RoadRunner-v5")
         self.env = env
         num_episodes = self.args.num_episodes
-        # if test:
-        #     self.algorithm.epsilon = 0.001
+        if test:
+            self.algorithm.epsilon = 0.001
 
         save_model_freq = num_episodes // 20
 
@@ -315,6 +332,7 @@ class Agent:
             with tqdm(total=int(num_episodes / 10), desc=f"Iteration {i}") as pbar:
                 for episode in range(num_episodes // 10):
                     state, info = env.reset()
+                    state = state[105: 180][:]
 
                     episode_reward = 0
                     episode_loss = 0
@@ -322,11 +340,16 @@ class Agent:
                     done = False
                     while not done:
                         state = self.preprocess(state) / 255.
+                        # grayImage = np.transpose(state.detach().cpu().numpy(), (1, 2, 0))
+                        # plt.imshow(grayImage, cmap="gray")
+                        # plt.axis('off')
+                        # plt.show()
                         current_index = self.algorithm.memory.store_memory_obs(state)
                         encoded_obs = self.algorithm.memory.encoder_recent_observation()
                         # encoded_obs = self.preprocess(encoded_obs).to(self.algorithm.device) / 255.
                         action = self.algorithm.select_action(encoded_obs)
                         s_prime, reward, done, _, _ = env.step(action)
+                        s_prime = s_prime[105:180][:]
                         reward /= 100
                         # if reward == 0:
                         #     reward = 0.01
@@ -355,9 +378,9 @@ class Agent:
 
                     if self.algorithm.epsilon > 0.01 and len(self.painter.return_list) > 0:
                         # self.algorithm.epsilon = 1 / (1 + ((np.log((np.mean(all_return_list[-10:])))) + 1))
-                        if num_episodes / 10 * i + episode + 1 < 5000:
+                        if num_episodes / 10 * i + episode + 1 < num_episodes / 10:
                             self.algorithm.epsilon *= 0.9995
-                        elif num_episodes / 10 * i + episode + 1 < 25000:
+                        elif num_episodes / 10 * i + episode + 1 < num_episodes / 2:
                             self.algorithm.epsilon = 0.1
                         else:
                             self.algorithm.epsilon = 0.01
@@ -384,7 +407,8 @@ class Agent:
                         torch.save({"main_net_state_dict": self.algorithm.main_net.state_dict(),
                                     "target_net_state_dict": self.algorithm.target_net.state_dict()},
                                    "./checkpoint/{}_model_RoadRunner_{}_{}.pth".format(self.algorithm.NAME,
-                                                                                       20000 + (num_episodes / 10 * i + episode + 1),
+                                                                                       (
+                                                                                               num_episodes / 10 * i + episode + 1),
                                                                                        "T" if RND else "F"))
                     pbar.update(1)
 
@@ -534,3 +558,168 @@ class Agent:
                                              "{} + RND".format(self.algorithm.NAME),
                                              "blue")
         plt.legend()
+
+
+"""
+----- ----------------------------------以下是做实验的代码----------------------------------
+"""
+
+
+class Agent_Experiment:
+    def __init__(self, args, algorithm=None, env=None):
+        self.algorithm = algorithm
+        self.args = args
+        self.painter = Painter()
+        self.env = env
+        self.rnd = RNDNetwork_CNN(args)
+        self.rnd_weight = 0.4
+        self.colors = ["red", "blue", "green", "yellow", "pink", "orange"]
+
+        self.preprocess = transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.Grayscale(),
+            transforms.Resize((84, 84)),
+            transforms.ToTensor(),
+        ])
+
+    def collect_memories(self, RND=False):
+        last_obs, _ = self.env.reset()
+        last_obs = last_obs[105:180][:]
+        for step in tqdm(range(self.algorithm.memory.learning_starts)):
+            last_obs = self.preprocess(last_obs) / 255.
+            cur_index = self.algorithm.memory.store_memory_obs(last_obs)
+            encoded_obs = self.algorithm.memory.encoder_recent_observation()
+            # choose action randomly
+            action = self.env.action_space.sample()
+            # interact with env
+            obs, reward, done, info, _ = self.env.step(action)
+            obs = obs[105:180][:]
+            reward /= 100
+            if RND:
+                predict, target = self.rnd(encoded_obs)
+                intrinsic_reward = self.rnd.get_intrinsic_reward(predict, target, CALC=False).item()
+                update_reward = (1 - self.rnd_weight) * reward + self.rnd_weight * intrinsic_reward
+            else:
+                update_reward = reward
+
+            # store other info
+            self.algorithm.memory.store_memory_effect(cur_index, action, update_reward, done)
+
+            if done:
+                last_obs, _ = self.env.reset()
+                last_obs = last_obs[105:180][:]
+
+            last_obs = obs
+
+    def train_RoadRunner(self, RND=False,
+                         NGU=False,
+                         *,
+                         rnd_weight_decay=1.0,
+                         painter_label=1,
+                         use_super=False,
+                         order=1,
+                         test=False):
+
+        env = gymnasium.make("ALE/RoadRunner-v5")
+        self.env = env
+        num_episodes = self.args.num_episodes
+        if test:
+            self.algorithm.epsilon = 0.001
+
+        save_model_freq = num_episodes // 20
+
+        all_return_list = []
+        return_list = []
+        loss_list = []
+        if test:
+            env = gymnasium.make("ALE/RoadRunner-v5", render_mode="human")
+        else:
+            self.algorithm.memory_reset()
+            # self.collect_memories(RND)
+
+        for i in range(10):
+            with tqdm(total=int(num_episodes / 10), desc=f"Iteration {i}") as pbar:
+                for episode in range(num_episodes // 10):
+                    state, info = env.reset()
+                    state = state[105: 180][:]
+
+                    episode_reward = 0
+                    episode_loss = 0
+
+                    done = False
+                    while not done:
+                        state = self.preprocess(state) / 255.
+                        # grayImage = np.transpose(state.detach().cpu().numpy(), (1, 2, 0))
+                        # plt.imshow(grayImage, cmap="gray")
+                        # plt.axis('off')
+                        # plt.show()
+                        current_index = self.algorithm.memory.store_memory_obs(state)
+                        encoded_obs = self.algorithm.memory.encoder_recent_observation()
+                        # encoded_obs = self.preprocess(encoded_obs).to(self.algorithm.device) / 255.
+                        action = self.algorithm.select_action(encoded_obs)
+                        s_prime, reward, done, _, _ = env.step(action)
+                        s_prime = s_prime[105:180][:]
+                        reward /= 100
+                        # if reward == 0:
+                        #     reward = 0.01
+
+                        if RND:
+                            predict, target = self.rnd(encoded_obs)
+                            intrinsic_reward = self.rnd.get_intrinsic_reward(predict, target).item()
+
+                            update_reward = (1 - self.rnd_weight) * reward + self.rnd_weight * intrinsic_reward
+                        elif use_super:
+                            intrinsic_reward = self.algorithm.get_super_reward(encoded_obs, action, reward)
+                            update_reward = 0.5 * reward + 0.5 * intrinsic_reward
+                        else:
+                            update_reward = reward
+
+                        # if self.rnd_weight > 0.001:
+                        #     self.rnd_weight *= 0.9995
+
+                        loss = self.algorithm.step(current_index, encoded_obs, action, update_reward, done)
+
+                        episode_reward += reward
+                        episode_loss += loss
+
+                        state = s_prime
+
+                    all_return_list.append(episode_reward)
+                    return_list.append(episode_reward)
+                    loss_list.append(episode_loss)
+
+                    if self.algorithm.epsilon > 0.01 and len(self.painter.return_list) > 0:
+                        # self.algorithm.epsilon = 1 / (1 + ((np.log((np.mean(all_return_list[-10:])))) + 1))
+                        if num_episodes / 10 * i + episode + 1 < num_episodes / 10:
+                            self.algorithm.epsilon *= 0.9995
+                        elif num_episodes / 10 * i + episode + 1 < num_episodes / 2:
+                            self.algorithm.epsilon = 0.1
+                        else:
+                            self.algorithm.epsilon = 0.01
+
+                    if (episode + 1) % 10 == 0:
+                        pbar.set_postfix(
+                            {
+                                "episode": f"{num_episodes / 10 * i + episode + 1}",
+                                "return of last 10 rounds": f"{np.mean(all_return_list[-10:]):3f}",
+                                "loss of last 10 rounds": f"{np.mean(loss_list[-10:]):9f}",
+                                "exploration": f"{self.algorithm.epsilon:6f}",
+                                "info": f"{info}"
+                            }
+                        )
+                        self.painter.plot_average_reward_by_list(return_list,
+                                                                 window=1,
+                                                                 title="{} on RoadRunner".format(self.algorithm.NAME),
+                                                                 curve_label="{}".format(
+                                                                     self.algorithm.NAME + "RND" if RND else ""),
+                                                                 color=self.colors[order - 1]
+                                                                 )
+                        return_list = []
+                    if (num_episodes / 10 * i + episode + 1) % save_model_freq == 0:
+                        torch.save({"main_net_state_dict": self.algorithm.main_net.state_dict(),
+                                    "target_net_state_dict": self.algorithm.target_net.state_dict()},
+                                   "./checkpoint/{}_model_RoadRunner_{}_{}.pth".format(self.algorithm.NAME,
+                                                                                       (
+                                                                                               num_episodes / 10 * i + episode + 1),
+                                                                                       "T" if RND else "F"))
+                    pbar.update(1)

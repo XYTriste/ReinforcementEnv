@@ -70,7 +70,7 @@ class Painter:
         if end:
             plt.show()
         else:
-            plt.pause(3)
+            plt.pause(0.05)
 
     def plot_episode_reward(self, reward_list, window, title, curve_label, color, end=False, xlabel="Episodes", ylabel="Returns"):
         plt.figure(window)

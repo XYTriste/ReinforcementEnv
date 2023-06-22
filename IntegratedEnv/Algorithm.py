@@ -3,12 +3,15 @@
 # Author: Yu Xia
 # @File: Algorithm.py
 # @software: PyCharm
+import copy
+
 import numpy as np
 import torch
 
 from Network import *
 from Tools import *
 from replaybuffer import *
+from collections import deque
 
 
 class DQN:
@@ -149,7 +152,7 @@ class DQN_CNN:
         self.memory = ReplayBuffer(self.memory_size, 4)
         self.memory_counter = 0
         self.learn_frequency = 0  # 记录执行了多少次step方法，控制经验回放的速率
-        self.frame_count = 0    # 记录更新过多少帧
+        self.frame_count = 0  # 记录更新过多少帧
 
         self.main_net = CNN(self.INPUT_DIM, self.OUTPUT_DIM).to(self.device)
         self.target_net = CNN(self.INPUT_DIM, self.OUTPUT_DIM).to(self.device)
@@ -201,8 +204,10 @@ class DQN_CNN:
             self.target_net.load_state_dict(self.main_net.state_dict())
         self.learn_step_counter += 1
         batch_s, batch_a, batch_r, batch_s_prime, batch_done = self.memory.sample_memories(self.BATCH_SIZE)
-        batch_s, batch_s_prime = self.change_to_tensor(batch_s).to(self.device) / 255.0, self.change_to_tensor(batch_s_prime).to(self.device) / 255.0
-        batch_a, batch_r = self.change_to_tensor(batch_a, dtype=torch.int64).to(self.device), self.change_to_tensor(batch_r).to(self.device)
+        batch_s, batch_s_prime = self.change_to_tensor(batch_s).to(self.device) / 255.0, self.change_to_tensor(
+            batch_s_prime).to(self.device) / 255.0
+        batch_a, batch_r = self.change_to_tensor(batch_a, dtype=torch.int64).to(self.device), self.change_to_tensor(
+            batch_r).to(self.device)
         batch_done = self.change_to_tensor(batch_done, dtype=torch.int64).to(self.device)
 
         self.frame_count += self.BATCH_SIZE
@@ -331,3 +336,207 @@ class NGU:
         self.episode_states_count = 0
         self.mean_value_of_k_neighbor = 0.0
         self.k_nearest_neighbor = []
+
+
+"""
+----- ----------------------------------以下是做实验的代码----------------------------------
+"""
+
+
+class SuperBuffer:
+    def __init__(self, capacity):
+        self.capacity = capacity
+        self.buffer = deque(maxlen=capacity)
+
+    def add(self, state, action, target):
+        target = target.detach().cpu()  # target是网络输出，需要额外脱离gpu以及计算图
+        state = state.cpu()  # 这里的state是tensor
+        self.buffer.append((np.array(state), action, np.array(target)))
+
+    def sample(self, batch_size):
+        # transitions = random.sample(self.buffer, batch_size)
+        temp = list(self.buffer)
+        transitions = temp[-batch_size:]
+
+        state, action, target = zip(*transitions)
+        return state, action, np.array(target)
+
+    def change(self, fact):
+        # 动态调整buff大小
+        temp = self.buffer
+        self.buffer = deque(maxlen=self.capacity * fact)
+        while len(temp) > 0:
+            self.buffer.append(temp.pop())
+
+    def __len__(self):
+        print(self.buffer)
+        return len(self.buffer)
+
+
+class Super_net:
+    def __init__(self, model):
+        self.model = model
+        self.lr = 2e-5
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        self.loss_func = torch.nn.MSELoss()
+        self.buffer = SuperBuffer(1)
+        self.batch_size = 1
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    def __call__(self, state):
+        return self.model(state)
+
+    def learn(self):
+        if len(self.buffer.buffer) < self.batch_size:
+            return torch.tensor(0, dtype=torch.float)
+        state, action, target = self.buffer.sample(self.batch_size)
+
+        states = torch.tensor(state, dtype=torch.float, device=self.device)
+        actions = torch.tensor(action, dtype=torch.long, device=self.device).view(-1, 1)
+        target = torch.tensor(target, dtype=torch.float, device=self.device).view(-1, 1)
+
+        super_value = self.model(state).view(-1, 4).gather(1, actions)
+
+        loss = self.loss_func(super_value, target)
+        self.optimizer.zero_grad()
+        loss.backward()
+        for param in self.model.parameters():
+            param.grad.data.clamp_(-1, 1)
+        self.optimizer.step()
+        return loss
+
+
+class DQN_CNN_Super:
+    def __init__(self, args: SetupArgs, *, NAME="DQN"):
+        self.NAME = NAME
+        self.args = args
+
+        self.interview_count = 0  # 记录智能体与环境交互的次数
+        self.super_train_count = 0
+
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        self.INPUT_DIM = args.INPUT_DIM  # 输入层的大小
+        self.HIDDEN_DIM = args.HIDDEN_DIM  # 隐藏层的大小
+        self.OUTPUT_DIM = args.OUTPUT_DIM  # 输出层的大小
+        self.HIDDEN_DIM_NUM = args.HIDDEN_DIM_NUM  # 隐藏层的数量
+
+        self.TARGET_REPLACE_ITER = 250
+        self.LR = self.args.lr
+        self.BATCH_SIZE = 32
+
+        self.epsilon = self.args.epsilon
+        self.learn_step_counter = 0
+
+        self.memory_size = 2 ** 16
+        self.memory = ReplayBuffer(self.memory_size, 4)
+        self.memory_counter = 0
+        self.learn_frequency = 0  # 记录执行了多少次step方法，控制经验回放的速率
+        self.frame_count = 0  # 记录更新过多少帧
+
+        self.main_net = CNN(self.INPUT_DIM, self.OUTPUT_DIM).to(self.device)
+        self.target_net = CNN(self.INPUT_DIM, self.OUTPUT_DIM).to(self.device)
+        self.target_net.load_state_dict(self.main_net.state_dict())
+        self.target_net.eval()
+
+        self.main_net_deepcopy = copy.deepcopy(self.main_net)
+        model = CNN(self.INPUT_DIM, self.OUTPUT_DIM).to(self.device)
+        model.load_state_dict(self.main_net_deepcopy.state_dict())
+        self.super_net = Super_net(model)
+
+        self.super_net_init = CNN(self.INPUT_DIM, self.OUTPUT_DIM).to(self.device)
+        self.super_net_init.load_state_dict(model.state_dict())
+        self.super_net_init.eval()
+
+        self.optimizer = torch.optim.Adam(self.main_net.parameters(), lr=self.LR)  # 网络参数优化
+        self.loss_func = nn.MSELoss()  # 损失函数，默认使用均方误差损失函数
+        self.l1loss_func = nn.L1Loss()
+
+    @torch.no_grad()
+    def select_action(self, state):
+        if np.random.uniform(0, 1) < self.epsilon:
+            action = np.random.randint(0, self.OUTPUT_DIM)
+        else:
+            if not isinstance(state, torch.Tensor):
+                state = torch.from_numpy(state).unsqueeze(0).to(self.device)
+            action = self.main_net(state).argmax().item()
+
+        return action
+
+    def memory_reset(self):
+        self.memory = ReplayBuffer(self.memory_size, 4)
+        self.memory_counter = 0
+        self.learn_frequency = 0
+
+    def get_super_reward(self, state, action, reward):
+        self.interview_count += 1
+        state = torch.tensor([state], dtype=torch.float).to(self.device)
+        q_value = self.main_net(state).squeeze()
+        q_value = q_value[action]
+        super_value = self.super_net(state).squeeze()
+        super_value = super_value[action]
+        reward_finally = 0
+        if super_value < q_value:
+            self.super_train_count += 1
+            self.super_net.buffer.add(state, action, q_value)
+            self.super_net.learn()
+            reward_loss = self.l1loss_func(super_value, q_value)
+            reward_distance = self.super_net(state)[action] - super_value
+
+            reward_finally = min(reward_loss, reward_distance).detach().cpu().numpy()
+
+        return reward_finally
+
+    def step(self, index, s, a, r, done) -> float:
+        """
+        得到下一个观测之后才能调用
+        """
+        # if self.epsilon > 0.01:
+        #     self.epsilon *= 0.9995
+
+        self.memory.store_memory_effect(index, a, r, done)
+        self.learn_frequency += 1
+        if self.memory.memory_counter > self.memory.learning_starts and self.learn_frequency % 4 == 0:
+            loss = self.learn()
+            return loss
+        return 0.0
+
+    def change_to_tensor(self, data, dtype=torch.float32):
+        """
+        change ndarray to torch.tensor
+        """
+        data_tensor = torch.from_numpy(data).type(dtype)
+        return data_tensor
+
+    def learn(self):
+        if self.learn_step_counter % self.TARGET_REPLACE_ITER == 0:
+            self.target_net.load_state_dict(self.main_net.state_dict())
+        self.learn_step_counter += 1
+        batch_s, batch_a, batch_r, batch_s_prime, batch_done = self.memory.sample_memories(self.BATCH_SIZE)
+        batch_s, batch_s_prime = self.change_to_tensor(batch_s).to(self.device) / 255.0, self.change_to_tensor(
+            batch_s_prime).to(self.device) / 255.0
+        batch_a, batch_r = self.change_to_tensor(batch_a, dtype=torch.int64).to(self.device), self.change_to_tensor(
+            batch_r).to(self.device)
+        batch_done = self.change_to_tensor(batch_done, dtype=torch.int64).to(self.device)
+
+        self.frame_count += self.BATCH_SIZE
+
+        estimated_q = self.main_net(batch_s)
+        estimated_q = estimated_q.gather(1, batch_a)
+        if self.NAME == "DQN":
+            q_target = self.target_net(batch_s_prime).detach()
+        elif self.NAME == "DDQN":
+            q_values_prime = self.main_net(batch_s_prime)
+            best_actions = torch.argmax(q_values_prime, dim=1)
+            q_target = self.target_net(batch_s_prime).detach()
+
+        y = batch_r + self.args.gamma * q_target.max(1)[0].view(self.BATCH_SIZE, 1) * ((1 - batch_done).unsqueeze(1))
+        loss = self.loss_func(estimated_q, y)
+
+        self.optimizer.zero_grad()
+        loss.backward()
+        for param in self.main_net.parameters():
+            param.grad.data.clamp_(-1, 1)
+        self.optimizer.step()
+
+        return loss.item()
