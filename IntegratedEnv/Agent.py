@@ -635,7 +635,7 @@ class Agent_Experiment:
             env = gymnasium.make("ALE/RoadRunner-v5", render_mode="human")
         else:
             self.algorithm.memory_reset()
-            # self.collect_memories(RND)
+            self.collect_memories(RND)
 
         for i in range(10):
             with tqdm(total=int(num_episodes / 10), desc=f"Iteration {i}") as pbar:
