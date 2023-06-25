@@ -56,8 +56,16 @@ class Painter:
             plt.pause(0.001)
 
     def plot_average_reward_by_list(self, list, window, title, curve_label, color, end=False, xlabel="Episodes",
-                            ylabel="Average reward"):
+                            ylabel="Average return", saveName="default_name"):
         plt.ion()
+        plt.figure(window)
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        plt.title(title)
+        if end:
+            plt.ioff()
+            plt.savefig('./train_pic/' + saveName + '.png')
+            return
         for reward in list:
             if len(self.return_list) == 0:
                 self.return_list.append(reward)
@@ -66,11 +74,7 @@ class Painter:
                 new_data = self.return_list[-1] + (reward - self.return_list[-1]) / size
                 self.return_list.append(new_data)
         plt.plot(np.array(self.return_list), color=color, label=curve_label, linewidth=0.8)
-
-        if end:
-            plt.show()
-        else:
-            plt.pause(0.05)
+        plt.pause(0.05)
 
     def plot_episode_reward(self, reward_list, window, title, curve_label, color, end=False, xlabel="Episodes", ylabel="Returns"):
         plt.figure(window)

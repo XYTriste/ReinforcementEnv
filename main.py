@@ -12,6 +12,7 @@ fig, ax = plt.subplots()
 # 创建初始的曲线对象
 line, = ax.plot(x, y)
 
+
 # 更新曲线的函数
 # def update_curve(new_data):
 #     # 添加新数据
@@ -155,8 +156,10 @@ line, = ax.plot(x, y)
 #     plt.pause(0.5)
 # plt.ioff()
 # plt.show()
-exploration_coefficient = Piecewise(
-                (0, 1.0),
-                (500, 0.1),
-                (35000, 0.01), outside_value=0.01)
-print(exploration_coefficient.subs(250, 260))
+def get_exploration_cofficient(x, N):
+    epsilon = 0.5 - 0.4 * (x - N / 40) / (N / 2 - N / 40)
+    return epsilon
+
+
+for i in range(200):
+    print(get_exploration_cofficient(i, 200))

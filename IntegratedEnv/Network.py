@@ -48,8 +48,8 @@ class CNN(nn.Module):
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
-        # x = x.view(x.size(0), -1)
-        x = x.flatten()
+        x = x.view(x.size(0), -1)
+        # x = x.flatten()
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         return x

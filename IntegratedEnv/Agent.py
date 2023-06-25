@@ -3,17 +3,15 @@
 # Author: Yu Xia
 # @File: Agent.py
 # @software: PyCharm
-import math
 
 import gymnasium
-import torch
 from matplotlib import pyplot as plt
 from sympy import Piecewise
 from tqdm import tqdm
-import numpy as np
-from Tools import Painter
-from Network import *
+
 from Algorithm import NGU
+from Network import *
+from Tools import Painter
 from replaybuffer import *
 
 
@@ -582,6 +580,24 @@ class Agent_Experiment:
             transforms.ToTensor(),
         ])
 
+    def get_exploration_cofficient(self, x, N):
+        if x < N / 40:
+            return 1
+        elif N / 40 <= x < N / 2:
+            epsilon = 1 - 0.9 * (x - N / 40) / (N / 2 - N / 40)
+            return epsilon
+        else:
+            return 0.01
+
+    def get_intrinsic_cofficient(self, x, N):
+        if x < N / 40:
+            return 1
+        elif N / 40 <= x < N / 2:
+            epsilon = 1 - 0.9 * (x - N / 40) / (N / 2 - N / 40)
+            return epsilon
+        else:
+            return 0.01
+
     def collect_memories(self, RND=False):
         last_obs, _ = self.env.reset()
         last_obs = last_obs[105:180][:]
@@ -670,7 +686,7 @@ class Agent_Experiment:
                             update_reward = (1 - self.rnd_weight) * reward + self.rnd_weight * intrinsic_reward
                         elif use_super:
                             intrinsic_reward = self.algorithm.get_super_reward(encoded_obs, action, reward)
-                            update_reward = 0.5 * reward + 0.5 * intrinsic_reward
+                            update_reward = 0.6 * reward + 0.4 * intrinsic_reward
                         else:
                             update_reward = reward
 
@@ -688,14 +704,16 @@ class Agent_Experiment:
                     return_list.append(episode_reward)
                     loss_list.append(episode_loss)
 
-                    if self.algorithm.epsilon > 0.01 and len(self.painter.return_list) > 0:
+                    if self.algorithm.epsilon >= 0.01 and len(self.painter.return_list) > 0:
                         # self.algorithm.epsilon = 1 / (1 + ((np.log((np.mean(all_return_list[-10:])))) + 1))
-                        if num_episodes / 10 * i + episode + 1 < num_episodes / 10:
-                            self.algorithm.epsilon *= 0.9995
-                        elif num_episodes / 10 * i + episode + 1 < num_episodes / 2:
-                            self.algorithm.epsilon = 0.1
-                        else:
-                            self.algorithm.epsilon = 0.01
+                        # if num_episodes / 10 * i + episode + 1 < num_episodes / 10:
+                        #     self.algorithm.epsilon *= 0.9995
+                        # elif num_episodes / 10 * i + episode + 1 < num_episodes / 2:
+                        #     self.algorithm.epsilon = 0.1
+                        # else:
+                        #     self.algorithm.epsilon = 0.01
+                        self.algorithm.epsilon = self.get_exploration_cofficient(num_episodes / 10 * i + episode + 1,
+                                                                                 num_episodes)
 
                     if (episode + 1) % 10 == 0:
                         pbar.set_postfix(
@@ -711,7 +729,7 @@ class Agent_Experiment:
                                                                  window=1,
                                                                  title="{} on RoadRunner".format(self.algorithm.NAME),
                                                                  curve_label="{}".format(
-                                                                     self.algorithm.NAME + "RND" if RND else ""),
+                                                                     self.algorithm.NAME + "Super" if use_super else ""),
                                                                  color=self.colors[order - 1]
                                                                  )
                         return_list = []
@@ -723,3 +741,11 @@ class Agent_Experiment:
                                                                                                num_episodes / 10 * i + episode + 1),
                                                                                        "T" if RND else "F"))
                     pbar.update(1)
+        self.painter.plot_average_reward_by_list(return_list,
+                                                 window=1,
+                                                 end=True,
+                                                 title="{} on RoadRunner".format(self.algorithm.NAME),
+                                                 curve_label="{}".format(
+                                                     self.algorithm.NAME + "Super" if use_super else ""),
+                                                 color=self.colors[order - 1],
+                                                 saveName="Train result for {} rounds on RoadRunner".format(num_episodes))

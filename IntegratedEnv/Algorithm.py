@@ -391,12 +391,12 @@ class Super_net:
             return torch.tensor(0, dtype=torch.float)
         state, action, target = self.buffer.sample(self.batch_size)
 
-        states = torch.tensor(state, dtype=torch.float, device=self.device).squeeze()
-        actions = torch.tensor(action, dtype=torch.long, device=self.device).view(-1, 1).squeeze()
-        target = torch.tensor(target, dtype=torch.float, device=self.device).view(-1, 1).squeeze()
+        states = torch.tensor(state, dtype=torch.float, device=self.device).squeeze(0)
+        actions = torch.tensor(action, dtype=torch.long, device=self.device).view(-1, 1)
+        target = torch.tensor(target, dtype=torch.float, device=self.device).view(-1, 1).squeeze(0)
 
-        super_value = self.model(states)
-        super_value.gather(1, actions)
+        super_value = self.model(states).squeeze(0)[actions].squeeze(0)
+        # super_value.gather(1, actions)
 
         loss = self.loss_func(super_value, target)
         self.optimizer.zero_grad()
@@ -471,8 +471,8 @@ class DQN_CNN_Super:
 
     def get_super_reward(self, state, action, reward):
         self.interview_count += 1
-        state = torch.tensor([state], dtype=torch.float).to(self.device)
-        q_value = self.main_net(state).squeeze()
+        state = torch.tensor(state, dtype=torch.float).unsqueeze(0).to(self.device)
+        q_value = self.main_net(state).squeeze(0)
         q_value = q_value[action]
         super_value = self.super_net(state).squeeze()
         super_value = super_value[action]
@@ -481,10 +481,10 @@ class DQN_CNN_Super:
             self.super_train_count += 1
             self.super_net.buffer.add(state, action, q_value)
             self.super_net.learn()
-            reward_loss = self.l1loss_func(super_value, q_value)
-            reward_distance = self.super_net(state)[action] - super_value
+            reward_loss = self.l1loss_func(super_value, q_value).item()
+            reward_distance = self.super_net(state).squeeze(0)[action].item() - super_value.item()
 
-            reward_finally = min(reward_loss, reward_distance).detach().cpu().numpy()
+            reward_finally = min(reward_loss, reward_distance)
 
         return reward_finally
 
