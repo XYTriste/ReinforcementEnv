@@ -100,3 +100,11 @@ class Painter:
         self.fig.canvas.draw()
         plt.pause(0.001)
 
+    def plot_NetOutput(self, list, label=None, color="red"):
+        plt.figure("state")
+        plt.xlabel('steps')
+        plt.ylabel('q_value')
+        plt.plot(list, label=label, color=color)
+        plt.pause(0.01)
+
+

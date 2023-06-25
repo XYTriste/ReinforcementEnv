@@ -5,6 +5,7 @@
 # @software: PyCharm
 
 import gymnasium
+import torch
 from matplotlib import pyplot as plt
 from sympy import Piecewise
 from tqdm import tqdm
@@ -580,6 +581,13 @@ class Agent_Experiment:
             transforms.ToTensor(),
         ])
 
+        self.state_count = 0
+        self.state_judge = None
+        self.action_judge = None
+        self.get_intrinsic_reward_count = 0  # 计算得到过多少次内在奖励
+        self.state_list = []
+        self.super_list = []
+
     def get_exploration_cofficient(self, x, N):
         if x < N / 40:
             return 1
@@ -597,6 +605,25 @@ class Agent_Experiment:
             return epsilon
         else:
             return 0.01
+
+    def Specify_State(self, state, action, state_count=11):
+        if self.state_count < state_count:
+            self.state_count += 1
+        elif self.state_count == state_count:
+            self.state_judge = torch.tensor(state, dtype=torch.float).to(self.algorithm.device)
+            self.action_judge = action
+            self.state_count += 1
+        else:
+            state = torch.tensor(state, dtype=torch.float).to(self.algorithm.device)
+            if self.algorithm.loss_func(self.state_judge, state) < 0.1 and self.get_intrinsic_reward_count % 10 == 0:
+                q_value = self.algorithm.main_net(state.unsqueeze(0)).squeeze(0)[action]
+                super_value = self.algorithm.super_net(state.unsqueeze(0)).squeeze(0)[action]
+                self.state_list.append(q_value.detach().cpu().numpy())
+                self.super_list.append(super_value.detach().cpu().numpy())
+                self.painter.plot_NetOutput(self.state_list, label="state", color="red")
+                self.painter.plot_NetOutput(self.super_list, label="super", color="blue")
+                if len(self.state_list) == 1:
+                    plt.legend()
 
     def collect_memories(self, RND=False):
         last_obs, _ = self.env.reset()
@@ -651,7 +678,11 @@ class Agent_Experiment:
             env = gymnasium.make("ALE/RoadRunner-v5", render_mode="human")
         else:
             self.algorithm.memory_reset()
-            self.collect_memories(RND)
+            #self.collect_memories(RND)
+
+        param1 = list(self.algorithm.main_net.parameters())
+        param2 = list(self.algorithm.super_net.model.parameters())
+        print("主网络和super网络的参数是否一致:{}".format(all(torch.equal(p1, p2) for p1, p2 in zip(param1, param2))))
 
         for i in range(10):
             with tqdm(total=int(num_episodes / 10), desc=f"Iteration {i}") as pbar:
@@ -685,7 +716,9 @@ class Agent_Experiment:
 
                             update_reward = (1 - self.rnd_weight) * reward + self.rnd_weight * intrinsic_reward
                         elif use_super:
+                            self.get_intrinsic_reward_count += 1
                             intrinsic_reward = self.algorithm.get_super_reward(encoded_obs, action, reward)
+                            self.Specify_State(encoded_obs, action)
                             update_reward = 0.6 * reward + 0.4 * intrinsic_reward
                         else:
                             update_reward = reward
@@ -748,4 +781,5 @@ class Agent_Experiment:
                                                  curve_label="{}".format(
                                                      self.algorithm.NAME + "Super" if use_super else ""),
                                                  color=self.colors[order - 1],
-                                                 saveName="Train result for {} rounds on RoadRunner".format(num_episodes))
+                                                 saveName="Train result for {} rounds on RoadRunner".format(
+                                                     num_episodes))

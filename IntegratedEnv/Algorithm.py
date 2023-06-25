@@ -376,7 +376,7 @@ class SuperBuffer:
 class Super_net:
     def __init__(self, model):
         self.model = model
-        self.lr = 2e-5
+        self.lr = 1e-5
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         self.loss_func = torch.nn.MSELoss()
         self.buffer = SuperBuffer(1)
@@ -497,6 +497,7 @@ class DQN_CNN_Super:
 
         self.memory.store_memory_effect(index, a, r, done)
         self.learn_frequency += 1
+        # print("Memory len:{}".format(self.memory.memory_counter))
         if self.memory.memory_counter > self.memory.learning_starts and self.learn_frequency % 4 == 0:
             loss = self.learn()
             return loss
