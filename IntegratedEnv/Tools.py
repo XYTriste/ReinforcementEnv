@@ -32,6 +32,9 @@ class Painter:
         self.fig, self.ax = plt.subplots()
         self.line, = self.ax.plot(self.x_data, self.y_data)
 
+        self.average_data = []
+        self.data_count = 0
+
     def plot_average_reward(self, reward, window, title, curve_label, color, end=False, xlabel="Episodes", ylabel="Average reward"):
         """
         计算并绘制前n个回合的平均奖励并更新
@@ -66,13 +69,19 @@ class Painter:
             plt.ioff()
             plt.savefig('./train_pic/' + saveName + '.png')
             return
-        for reward in list:
-            if len(self.return_list) == 0:
-                self.return_list.append(reward)
-            else:
-                size = len(self.return_list) + 1
-                new_data = self.return_list[-1] + (reward - self.return_list[-1]) / size
-                self.return_list.append(new_data)
+        # for reward in list:
+        #     if len(self.return_list) == 0:
+        #         self.return_list.append(reward)
+        #     else:
+        #         size = len(self.return_list) + 1
+        #         new_data = self.return_list[-1] + (reward - self.return_list[-1]) / size
+        #         self.return_list.append(new_data)
+        average_data = np.average(list)
+        if len(self.return_list) == 0:
+            self.return_list.append(average_data)
+        else:
+            new_data = self.return_list[-1] + (average_data - self.return_list[-1]) / len(self.return_list)
+            self.return_list.append(new_data)
         plt.plot(np.array(self.return_list), color=color, label=curve_label, linewidth=0.8)
         plt.pause(0.05)
 
