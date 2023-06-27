@@ -4,6 +4,7 @@
 # @File: Algorithm.py
 # @software: PyCharm
 import copy
+import math
 
 import numpy as np
 import torch
@@ -390,8 +391,9 @@ class Super_net:
         if len(self.buffer.buffer) < self.batch_size:
             return torch.tensor(0, dtype=torch.float)
         state, action, target = self.buffer.sample(self.batch_size)
+        state = state[0][0]
 
-        states = torch.tensor(state, dtype=torch.float, device=self.device).squeeze(0)
+        states = torch.tensor(state, dtype=torch.float, device=self.device).unsqueeze(0)
         actions = torch.tensor(action, dtype=torch.long, device=self.device).view(-1, 1)
         target = torch.tensor(target, dtype=torch.float, device=self.device).view(-1, 1).squeeze(0)
 
@@ -427,6 +429,11 @@ class DQN_CNN_Super:
         self.BATCH_SIZE = 32
 
         self.epsilon = self.args.epsilon
+        self.steps_done = 0     # 记录epsilon的衰减次数，得到下一次选择动作时的epsilon值。
+        self.decay_start = self.epsilon
+        self.decay_end = 0.01
+        self.decay_step = 1000000
+
         self.learn_step_counter = 0
 
         self.memory_size = 2 ** 16
@@ -498,7 +505,7 @@ class DQN_CNN_Super:
         self.memory.store_memory_effect(index, a, r, done)
         self.learn_frequency += 1
         # print("Memory len:{}".format(self.memory.memory_counter))
-        if self.memory.memory_counter > self.memory.learning_starts and self.learn_frequency % 4 == 0:
+        if self.memory.memory_counter > self.memory.learning_starts and self.learn_frequency % 5 == 0:
             loss = self.learn()
             return loss
         return 0.0

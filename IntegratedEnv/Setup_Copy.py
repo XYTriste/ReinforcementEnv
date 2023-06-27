@@ -180,5 +180,35 @@ def RoadRunner_Experiment():
     plt.show()
 
 
+def Pong_experiment():
+    args = SetupArgs().get_args()
+
+    args.num_episodes = 10000
+    args.INPUT_DIM = 4
+    args.HIDDEN_DIM = 128
+    args.OUTPUT_DIM = 6
+    args.HIDDEN_DIM_NUM = 5
+
+    # checkpoint = torch.load('./checkpoint/DQN_model_breakout_450.0.pth')
+
+    dqn = DQN_CNN_Super(args)
+    double_dqn = DQN_CNN(args, NAME="DDQN")
+    double_dqn.main_net.load_state_dict(dqn.main_net.state_dict())
+    double_dqn.target_net.load_state_dict(dqn.target_net.state_dict())
+    # double_dqn.main_net.load_state_dict(checkpoint['main_net_state_dict'])
+    # double_dqn.target_net.load_state_dict(checkpoint['target_net_state_dict'])
+    agent1 = Agent_Experiment(args, dqn)
+    agent1.train_Pong(use_super=True)
+
+    # agent2 = Agent(args, double_dqn)
+    # agent2.train_breakout(RND=True, order=2)
+
+    torch.save({"main_net_state_dict": dqn.main_net.state_dict(),
+                "target_net_state_dict": dqn.target_net.state_dict()}, "checkpoint/dqn_model_Pong_final.pth")
+    torch.save({"main_net_state_dict": double_dqn.main_net.state_dict(),
+                "target_net_state_dict": double_dqn.target_net.state_dict()},
+               "checkpoint/DDQN_model_Pong_final.pth")
+    plt.show()
+
 if __name__ == "__main__":
-    RoadRunner_Experiment()
+    Pong_experiment()
