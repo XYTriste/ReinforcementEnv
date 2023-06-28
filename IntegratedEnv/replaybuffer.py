@@ -71,7 +71,7 @@ class ReplayBuffer:
 
             if self.memory_counter != self.MEMORY_CAPACITY:
                 for index in range(start_index, end_index - 1):
-                    if self.memory[index % self.MEMORY_CAPACITY]['done']:
+                    if 'done' in self.memory[index % self.MEMORY_CAPACITY] and self.memory[index % self.MEMORY_CAPACITY]['done']:
                         start_index = index + 1
                         is_sit_3 = True
 
@@ -81,7 +81,7 @@ class ReplayBuffer:
                 return 1, missing_context, start_index, end_index
             else:
                 for index in range(start_index, end_index - 1):
-                    if self.memory[index % self.MEMORY_CAPACITY]['done']:
+                    if 'done' in self.memory[index % self.MEMORY_CAPACITY] and self.memory[index % self.MEMORY_CAPACITY]['done']:
                         start_index = index + 1
                         is_sit_3 = True
 
@@ -91,7 +91,7 @@ class ReplayBuffer:
 
                 for i in range(missing_context, 0, -1):
                     index = self.MEMORY_CAPACITY - i
-                    if self.memory[index % self.MEMORY_CAPACITY]['done']:
+                    if 'done' in self.memory[index % self.MEMORY_CAPACITY] and self.memory[index % self.MEMORY_CAPACITY]['done']:
                         start_index = (index + 1) % self.MEMORY_CAPACITY
                         is_sit_3 = True
 
@@ -105,7 +105,7 @@ class ReplayBuffer:
                 return 2, 0, start_index, end_index
 
         for index in range(start_index, end_index - 1):
-            if self.memory[index % self.MEMORY_CAPACITY]['done']:
+            if 'done' in self.memory[index % self.MEMORY_CAPACITY] and self.memory[index % self.MEMORY_CAPACITY]['done']:
                 start_index = index + 1
                 is_sit_3 = True
 

@@ -5,11 +5,11 @@
 # @software: PyCharm
 import copy
 
-import torch
 
 from Algorithm import *
 from Agent import *
 import matplotlib.pyplot as plt
+
 
 
 def mountaincar_DQN():
@@ -145,7 +145,7 @@ def RoadRunner():
 def RoadRunner_Experiment():
     args = SetupArgs().get_args()
 
-    args.num_episodes = 25000
+    args.num_episodes = 10000
     args.INPUT_DIM = 4
     args.HIDDEN_DIM = 128
     args.OUTPUT_DIM = 18

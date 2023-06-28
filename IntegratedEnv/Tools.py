@@ -14,11 +14,12 @@ class SetupArgs:
 
     def get_args(self, description="Parameters setting"):
         parser = argparse.ArgumentParser(description=description)
-        parser.add_argument('--lr', type=float, default=2.5e-4, help='Learning rate')
+        parser.add_argument('--lr', type=float, default=0.00025, help='Learning rate')
         parser.add_argument('--num_episodes', type=int, default=1500, help='Training frequency')
         parser.add_argument('--seed', type=int, default=24, metavar='S', help='set random seed')
-        parser.add_argument("--gamma", type=float, default=0.99, metavar='S', help='discounted rate')
+        parser.add_argument("--gamma", type=float, default=0.95, metavar='S', help='discounted rate')
         parser.add_argument('--epsilon', type=float, default=1, metavar='S', help='Exploration rate')
+        parser.add_argument('--buffer_size', type=int, default=2 ** 16, metavar='S', help='Experience replay buffer size')
         parser.add_argument('--env_name', type=str, default="MountainCar-v0", metavar='S', help="Environment name")
 
         return parser.parse_args()
@@ -58,7 +59,7 @@ class Painter:
         else:
             plt.pause(0.001)
 
-    def plot_average_reward_by_list(self, list, window, title, curve_label, color, end=False, xlabel="Episodes",
+    def plot_average_reward_by_list(self, list, window, title, curve_label, color, end=False, xlabel="steps",
                             ylabel="Average return", saveName="default_name"):
         plt.ion()
         plt.figure(window)
@@ -69,19 +70,19 @@ class Painter:
             plt.ioff()
             plt.savefig('./train_pic/' + saveName + '.png')
             return
-        for reward in list:
-            if len(self.return_list) == 0:
-                self.return_list.append(reward)
-            else:
-                size = len(self.return_list) + 1
-                new_data = self.return_list[-1] + (reward - self.return_list[-1]) / size
-                self.return_list.append(new_data)
-        # average_data = np.average(list)
-        # if len(self.return_list) == 0:
-        #     self.return_list.append(average_data)
-        # else:
-        #     new_data = self.return_list[-1] + (average_data - self.return_list[-1]) / len(self.return_list)
-        #     self.return_list.append(new_data)
+        # for reward in list:
+        #     if len(self.return_list) == 0:
+        #         self.return_list.append(reward)
+        #     else:
+        #         size = len(self.return_list) + 1
+        #         new_data = self.return_list[-1] + (reward - self.return_list[-1]) / size
+        #         self.return_list.append(new_data)
+        average_data = np.average(list)
+        if len(self.return_list) == 0:
+            self.return_list.append(average_data)
+        else:
+            new_data = self.return_list[-1] + (average_data - self.return_list[-1]) / len(self.return_list)
+            self.return_list.append(new_data)
         plt.plot(np.array(self.return_list), color=color, label=curve_label, linewidth=0.8)
         plt.pause(0.05)
 

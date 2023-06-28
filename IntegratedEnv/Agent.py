@@ -675,6 +675,9 @@ class Agent_Experiment:
         all_return_list = []
         return_list = []
         loss_list = []
+
+        plot_step = 1
+        time_step = 0
         if test:
             env = gymnasium.make("ALE/RoadRunner-v5", render_mode="human")
         else:
@@ -704,7 +707,7 @@ class Agent_Experiment:
                         current_index = self.algorithm.memory.store_memory_obs(state)
                         encoded_obs = self.algorithm.memory.encoder_recent_observation()
                         # encoded_obs = self.preprocess(encoded_obs).to(self.algorithm.device) / 255.
-                        action = self.algorithm.select_action(encoded_obs)
+                        q_value, action = self.algorithm.select_action(encoded_obs)
                         s_prime, reward, done, _, _ = env.step(action)
                         s_prime = s_prime[105:180][:]
                         reward /= 100
@@ -718,8 +721,8 @@ class Agent_Experiment:
                             update_reward = (1 - self.rnd_weight) * reward + self.rnd_weight * intrinsic_reward
                         elif use_super:
                             self.get_intrinsic_reward_count += 1
-                            intrinsic_reward = self.algorithm.get_super_reward(encoded_obs, action, reward)
-                            self.Specify_State(encoded_obs, action)
+                            intrinsic_reward = self.algorithm.get_super_reward(q_value, encoded_obs, action, reward)
+                            # self.Specify_State(encoded_obs, action)
                             update_reward = 0.6 * reward + 0.4 * intrinsic_reward
                         else:
                             update_reward = reward
@@ -733,6 +736,7 @@ class Agent_Experiment:
                         episode_loss += loss
 
                         state = s_prime
+                        time_step += 1
 
                     all_return_list.append(episode_reward)
                     return_list.append(episode_reward)
@@ -756,14 +760,17 @@ class Agent_Experiment:
                                 "return of last 10 rounds": f"{np.mean(all_return_list[-10:]):3f}",
                                 "loss of last 10 rounds": f"{np.mean(loss_list[-10:]):9f}",
                                 "exploration": f"{self.algorithm.epsilon:6f}",
-                                "info": f"{info}"
+                                "info": f"{info}",
+                                "time step": f"{time_step}"
                             }
                         )
+                    if time_step > plot_step * 10000:
+                        plot_step += 1
                         self.painter.plot_average_reward_by_list(return_list,
                                                                  window=1,
                                                                  title="{} on RoadRunner".format(self.algorithm.NAME),
                                                                  curve_label="{}".format(
-                                                                     self.algorithm.NAME + "Super" if use_super else ""),
+                                                                     self.algorithm.NAME + "RND" if RND else ""),
                                                                  color=self.colors[order - 1]
                                                                  )
                         return_list = []
@@ -951,12 +958,12 @@ class Agent_Experiment:
 
                     done = False
                     while not done:
-                        state = self.preprocess(state)
+                        state = self.preprocess(state) / 255.
                         current_index = self.algorithm.memory.store_memory_obs(state)
                         encoded_obs = self.algorithm.memory.encoder_recent_observation()
                         # # encoded_obs = torch.from_numpy(encoded_obs).unsqueeze(0).to(torch.float32) / 255.0
                         # encoded_obs = self.preprocess(encoded_obs)
-                        action = self.algorithm.select_action(encoded_obs)
+                        q_value, action = self.algorithm.select_action(encoded_obs)
                         s_prime, reward, done, _, _ = env.step(action)
                         reward /= 100
                         s_prime = s_prime[20:, :]
@@ -968,7 +975,7 @@ class Agent_Experiment:
                             update_reward = (1 - self.rnd_weight) * reward + self.rnd_weight * intrinsic_reward
                         elif use_super:
                             self.get_intrinsic_reward_count += 1
-                            intrinsic_reward = self.algorithm.get_super_reward(encoded_obs, action, reward)
+                            intrinsic_reward = self.algorithm.get_super_reward(q_value, encoded_obs, action, reward)
                             # self.Specify_State(encoded_obs, action)
                             update_reward = 0.6 * reward + 0.4 * intrinsic_reward
                         else:
@@ -984,14 +991,21 @@ class Agent_Experiment:
 
                         state = s_prime
 
+                        self.algorithm.epsilon = self.algorithm.decay_end + (
+                                self.algorithm.decay_start - self.algorithm.decay_end) * \
+                                                 math.exp(-1. * self.algorithm.steps_done / self.algorithm.decay_step)
+                        self.algorithm.steps_done += 1
+
+
                     return_list.append(episode_reward)
                     loss_list.append(episode_loss)
                     if self.algorithm.epsilon > 0.01 and not test:
                         # self.algorithm.epsilon *= 0.997
                         # if np.mean(return_list[-10:]) < 10.0 and self.algorithm.epsilon < 0.2:
                         #     self.algorithm.epsilon = 0.2
-                        self.algorithm.epsilon = self.get_exploration_cofficient(num_episodes / 10 * i + episode + 1,
-                                                                                 num_episodes)
+                        # self.algorithm.epsilon = self.get_exploration_cofficient(num_episodes / 10 * i + episode + 1,
+                        #                                                          num_episodes)
+                        pass
 
                     # self.painter.plot_average_reward(episode_reward,
                     #                                  window=1,
@@ -1060,11 +1074,14 @@ class Agent_Experiment:
         loss_list = []
         return_list = []
 
+        plot_step = 1
+        time_step = 1
+
         if test:
             pass
         else:
-            self.algorithm.memory_reset()
-            # self.collect_memories(RND)
+            # self.algorithm.memory_reset()
+            self.collect_memories(RND)
         for i in range(10):
             with tqdm(total=int(num_episodes / 10), desc=f"Iteration {i}") as pbar:
 
@@ -1080,15 +1097,15 @@ class Agent_Experiment:
                         # plt.imshow(state)
                         # plt.axis('off')
                         # plt.show()
-                        state = self.preprocess(state)
+                        state = self.preprocess(state) / 255.
                         current_index = self.algorithm.memory.store_memory_obs(state)
                         encoded_obs = self.algorithm.memory.encoder_recent_observation()
                         # # encoded_obs = torch.from_numpy(encoded_obs).unsqueeze(0).to(torch.float32) / 255.0
                         # encoded_obs = self.preprocess(encoded_obs)
-                        action = self.algorithm.select_action(encoded_obs)
+                        q_value, action = self.algorithm.select_action(encoded_obs)
                         s_prime, reward, done, _, _ = env.step(action)
                         # reward /= 100
-                        s_prime = s_prime[30:-12,5:-4]
+                        s_prime = s_prime[30:-12, 5:-4]
 
                         if RND:
                             predict, target = self.rnd(encoded_obs)
@@ -1097,7 +1114,7 @@ class Agent_Experiment:
                             update_reward = (1 - self.rnd_weight) * reward + self.rnd_weight * intrinsic_reward
                         elif use_super:
                             self.get_intrinsic_reward_count += 1
-                            intrinsic_reward = self.algorithm.get_super_reward(encoded_obs, action, reward)
+                            intrinsic_reward = self.algorithm.get_super_reward(q_value, encoded_obs, action, reward)
                             # self.Specify_State(encoded_obs, action)
                             update_reward = 0.6 * reward + 0.4 * intrinsic_reward
                         else:
@@ -1112,12 +1129,10 @@ class Agent_Experiment:
                         episode_loss += loss
 
                         state = s_prime
+                        time_step += 1
 
-                        """
-                        临时的epsilon更新方式
-                        """
                         self.algorithm.epsilon = self.algorithm.decay_end + (
-                                    self.algorithm.decay_start - self.algorithm.decay_end) * \
+                                self.algorithm.decay_start - self.algorithm.decay_end) * \
                                                  math.exp(-1. * self.algorithm.steps_done / self.algorithm.decay_step)
                         self.algorithm.steps_done += 1
 
@@ -1146,18 +1161,19 @@ class Agent_Experiment:
                                 "loss of last 10 rounds": f"{np.mean(loss_list[-10:]):9f}",
                                 "exploration": f"{self.algorithm.epsilon:6f}",
                                 "frame count": f"{info}",
-                                "time step": f"{self.algorithm.steps_done}"
+                                "time step": f"{time_step}"
                             }
                         )
-                        if len(return_list) == 10:
-                            self.painter.plot_average_reward_by_list(return_list,
-                                                                     window=1,
-                                                                     title="{} on Pong".format(self.algorithm.NAME),
-                                                                     curve_label="{}".format(
-                                                                         self.algorithm.NAME + "RND" if RND else ""),
-                                                                     color=self.colors[order - 1]
-                                                                     )
-                            return_list = []
+                    if time_step > plot_step * 10000:
+                        plot_step += 1
+                        self.painter.plot_average_reward_by_list(return_list,
+                                                                 window=1,
+                                                                 title="{} on Pong".format(self.algorithm.NAME),
+                                                                 curve_label="{}".format(
+                                                                     self.algorithm.NAME + "RND" if RND else ""),
+                                                                 color=self.colors[order - 1]
+                                                                 )
+                        return_list = []
 
                     if (num_episodes / 10 * i + episode + 1) % save_model_freq == 0 and not test:
                         torch.save({"main_net_state_dict": self.algorithm.main_net.state_dict(),

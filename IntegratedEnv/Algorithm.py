@@ -6,8 +6,6 @@
 import copy
 import math
 
-import numpy as np
-import torch
 
 from Network import *
 from Tools import *
@@ -424,7 +422,7 @@ class DQN_CNN_Super:
         self.OUTPUT_DIM = args.OUTPUT_DIM  # 输出层的大小
         self.HIDDEN_DIM_NUM = args.HIDDEN_DIM_NUM  # 隐藏层的数量
 
-        self.TARGET_REPLACE_ITER = 250
+        self.TARGET_REPLACE_ITER = 10000
         self.LR = self.args.lr
         self.BATCH_SIZE = 32
 
@@ -436,7 +434,7 @@ class DQN_CNN_Super:
 
         self.learn_step_counter = 0
 
-        self.memory_size = 2 ** 16
+        self.memory_size = self.args.buffer_size
         self.memory = ReplayBuffer(self.memory_size, 4)
         self.memory_counter = 0
         self.learn_frequency = 0  # 记录执行了多少次step方法，控制经验回放的速率
@@ -462,25 +460,31 @@ class DQN_CNN_Super:
 
     @torch.no_grad()
     def select_action(self, state):
+        q_value = float('-inf')
         if np.random.uniform(0, 1) < self.epsilon:
             action = np.random.randint(0, self.OUTPUT_DIM)
         else:
             if not isinstance(state, torch.Tensor):
                 state = torch.from_numpy(state).unsqueeze(0).to(self.device)
-            action = self.main_net(state).argmax().item()
+            q_action = self.main_net(state)
+            action = q_action.argmax().item()
+            q_value = q_action[0][action]
 
-        return action
+        return q_value, action
 
     def memory_reset(self):
         self.memory = ReplayBuffer(self.memory_size, 4)
         self.memory_counter = 0
         self.learn_frequency = 0
 
-    def get_super_reward(self, state, action, reward):
+    def get_super_reward(self, q_val, state, action, reward):
         self.interview_count += 1
         state = torch.tensor(state, dtype=torch.float).unsqueeze(0).to(self.device)
-        q_value = self.main_net(state).squeeze(0)
-        q_value = q_value[action]
+        if q_val == float('-inf'):
+            q_value = self.main_net(state).squeeze(0)
+            q_value = q_value[action]
+        else:
+            q_value = q_val
         super_value = self.super_net(state).squeeze()
         super_value = super_value[action]
         reward_finally = 0
@@ -505,7 +509,7 @@ class DQN_CNN_Super:
         self.memory.store_memory_effect(index, a, r, done)
         self.learn_frequency += 1
         # print("Memory len:{}".format(self.memory.memory_counter))
-        if self.memory.memory_counter > self.memory.learning_starts and self.learn_frequency % 5 == 0:
+        if self.memory.memory_counter > self.BATCH_SIZE and self.memory.memory_counter > self.memory.learning_starts and self.learn_frequency % 5 == 0:
             loss = self.learn()
             return loss
         return 0.0
