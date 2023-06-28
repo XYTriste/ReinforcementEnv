@@ -14,7 +14,7 @@ class ReplayBuffer:
         self.memory = None
         self.obs_shape = None
 
-        self.learning_starts = 20000
+        self.learning_starts = 200
 
         self.memory_counter = 0
         self.store_index = 0
