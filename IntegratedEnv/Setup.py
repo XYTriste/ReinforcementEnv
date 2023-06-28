@@ -145,7 +145,7 @@ def RoadRunner():
 def RoadRunner_Experiment():
     args = SetupArgs().get_args()
 
-    args.num_episodes = 10000
+    args.num_episodes = 50000
     args.INPUT_DIM = 4
     args.HIDDEN_DIM = 128
     args.OUTPUT_DIM = 18
@@ -167,16 +167,16 @@ def RoadRunner_Experiment():
     agent1.train_RoadRunner(use_super=True)
     agent2 = Agent_Experiment(args, dqnCopy)
     agent2.train_RoadRunner(use_super=False, order=2)
-    # torch.save({"main_net_state_dict": dqn.main_net.state_dict(),
-    #             "target_net_state_dict": dqn.target_net.state_dict()},
-    #            "checkpoint/dqn_model_RoadRunner_70000_final.pth")
+    torch.save({"main_net_state_dict": dqn.main_net.state_dict(),
+                "target_net_state_dict": dqn.target_net.state_dict()},
+               "checkpoint/dqn_super_model_RoadRunner_{}_final.pth".format(args.num_episodes))
 
     # agent2 = Agent(args, double_dqn)
     # agent2.train_RoadRunner(RND=False, order=2)
     #
-    # torch.save({"main_net_state_dict": double_dqn.main_net.state_dict(),
-    #             "target_net_state_dict": double_dqn.target_net.state_dict()},
-    #            "checkpoint/DDQN_model_RoadRunner_final.pth")
+    torch.save({"main_net_state_dict": double_dqn.main_net.state_dict(),
+                "target_net_state_dict": double_dqn.target_net.state_dict()},
+               "checkpoint/dqn_model_RoadRunner_{}_final.pth".format(args.num_episodes))
     plt.show()
 
 
@@ -214,7 +214,7 @@ def breakout_experiment():
 def Seaquest_experiment():
     args = SetupArgs().get_args()
 
-    args.num_episodes = 10000
+    args.num_episodes = 50000
     args.INPUT_DIM = 4
     args.HIDDEN_DIM = 128
     args.OUTPUT_DIM = 18
@@ -223,6 +223,7 @@ def Seaquest_experiment():
     # checkpoint = torch.load('./checkpoint/DQN_model_breakout_450.0.pth')
 
     dqn = DQN_CNN_Super(args)
+    dqnCopy = copy.deepcopy(dqn)
     double_dqn = DQN_CNN(args, NAME="DDQN")
     double_dqn.main_net.load_state_dict(dqn.main_net.state_dict())
     double_dqn.target_net.load_state_dict(dqn.target_net.state_dict())
@@ -231,8 +232,8 @@ def Seaquest_experiment():
     agent1 = Agent_Experiment(args, dqn)
     agent1.train_Seaquest(use_super=True)
 
-    # agent2 = Agent(args, double_dqn)
-    # agent2.train_breakout(RND=True, order=2)
+    agent2 = Agent(args, dqnCopy)
+    agent2.train_Seaquest(RND=False, order=2)
 
     torch.save({"main_net_state_dict": dqn.main_net.state_dict(),
                 "target_net_state_dict": dqn.target_net.state_dict()}, "checkpoint/dqn_model_Seaquest_final.pth")
@@ -274,7 +275,7 @@ def Pong_experiment():
 def Pong_experiment():
     args = SetupArgs().get_args()
 
-    args.num_episodes = 10000
+    args.num_episodes = 50000
     args.INPUT_DIM = 4
     args.HIDDEN_DIM = 128
     args.OUTPUT_DIM = 6
