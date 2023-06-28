@@ -628,7 +628,7 @@ class Agent_Experiment:
 
     def collect_memories(self, RND=False):
         last_obs, _ = self.env.reset()
-        last_obs = last_obs[105:180][:]
+        last_obs = last_obs[35:, :]
         for step in tqdm(range(self.algorithm.memory.learning_starts)):
             last_obs = self.preprocess(last_obs) / 255.
             cur_index = self.algorithm.memory.store_memory_obs(last_obs)
@@ -637,7 +637,7 @@ class Agent_Experiment:
             action = self.env.action_space.sample()
             # interact with env
             obs, reward, done, info, _ = self.env.step(action)
-            obs = obs[105:180][:]
+            obs = obs[35:, :]
             reward /= 100
             if RND:
                 predict, target = self.rnd(encoded_obs)
@@ -651,7 +651,7 @@ class Agent_Experiment:
 
             if done:
                 last_obs, _ = self.env.reset()
-                last_obs = last_obs[105:180][:]
+                last_obs = last_obs[35:, :]
 
             last_obs = obs
 
@@ -977,7 +977,7 @@ class Agent_Experiment:
                             self.get_intrinsic_reward_count += 1
                             intrinsic_reward = self.algorithm.get_super_reward(q_value, encoded_obs, action, reward)
                             # self.Specify_State(encoded_obs, action)
-                            update_reward = 0.6 * reward + 0.4 * intrinsic_reward
+                            update_reward = reward + 0.4 * intrinsic_reward
                         else:
                             update_reward = reward
 
@@ -991,10 +991,10 @@ class Agent_Experiment:
 
                         state = s_prime
 
-                        self.algorithm.epsilon = self.algorithm.decay_end + (
-                                self.algorithm.decay_start - self.algorithm.decay_end) * \
-                                                 math.exp(-1. * self.algorithm.steps_done / self.algorithm.decay_step)
-                        self.algorithm.steps_done += 1
+                        # self.algorithm.epsilon = self.algorithm.decay_end + (
+                        #         self.algorithm.decay_start - self.algorithm.decay_end) * \
+                        #                          math.exp(-1. * self.algorithm.steps_done / self.algorithm.decay_step)
+                        # self.algorithm.steps_done += 1
 
 
                     return_list.append(episode_reward)
@@ -1003,8 +1003,8 @@ class Agent_Experiment:
                         # self.algorithm.epsilon *= 0.997
                         # if np.mean(return_list[-10:]) < 10.0 and self.algorithm.epsilon < 0.2:
                         #     self.algorithm.epsilon = 0.2
-                        # self.algorithm.epsilon = self.get_exploration_cofficient(num_episodes / 10 * i + episode + 1,
-                        #                                                          num_episodes)
+                        self.algorithm.epsilon = self.get_exploration_cofficient(num_episodes / 10 * i + episode + 1,
+                                                                                 num_episodes)
                         pass
 
                     # self.painter.plot_average_reward(episode_reward,
@@ -1242,6 +1242,147 @@ class Agent_Experiment:
                         s_prime, reward, done, _, _ = env.step(action)
                         # reward /= 100
                         s_prime = s_prime[30:-12, 5:-4]
+
+                        if RND:
+                            predict, target = self.rnd(encoded_obs)
+                            intrinsic_reward = self.rnd.get_intrinsic_reward(predict, target).item()
+
+                            update_reward = (1 - self.rnd_weight) * reward + self.rnd_weight * intrinsic_reward
+                        elif use_super:
+                            self.get_intrinsic_reward_count += 1
+                            intrinsic_reward = self.algorithm.get_super_reward(q_value, encoded_obs, action, reward)
+                            # self.Specify_State(encoded_obs, action)
+                            update_reward = reward + 0.4 * intrinsic_reward
+                        else:
+                            update_reward = reward
+
+                        if self.rnd_weight > 0.001:
+                            self.rnd_weight *= 0.9995
+
+                        loss = self.algorithm.step(current_index, state, action, update_reward, done)
+
+                        episode_reward += reward
+                        episode_loss += loss
+
+                        state = s_prime
+                        time_step += 1
+
+                        self.algorithm.epsilon = self.algorithm.decay_end + (
+                                self.algorithm.decay_start - self.algorithm.decay_end) * \
+                                                 math.exp(-1. * self.algorithm.steps_done / self.algorithm.decay_step)
+                        self.algorithm.steps_done += 1
+
+                    return_list.append(episode_reward)
+                    loss_list.append(episode_loss)
+                    if self.algorithm.epsilon > 0.01 and not test:
+                        # self.algorithm.epsilon *= 0.997
+                        # if np.mean(return_list[-10:]) < 10.0 and self.algorithm.epsilon < 0.2:
+                        #     self.algorithm.epsilon = 0.2
+                        # self.algorithm.epsilon = self.get_exploration_cofficient(num_episodes / 10 * i + episode + 1,
+                        #                                                          num_episodes)
+                        pass
+
+                    # self.painter.plot_average_reward(episode_reward,
+                    #                                  window=1,
+                    #                                  title="{} on breakout".format(self.algorithm.NAME),
+                    #                                  curve_label="{}".format(
+                    #                                      self.algorithm.NAME + "RND" if RND else ""),
+                    #                                  color=self.colors[order - 1])
+
+                    if (episode + 1) % 10 == 0:
+                        pbar.set_postfix(
+                            {
+                                "episode": f"{num_episodes / 10 * i + episode + 1}",
+                                "return of last 10 rounds": f"{np.mean(return_list[-10:]):3f}",
+                                "loss of last 10 rounds": f"{np.mean(loss_list[-10:]):9f}",
+                                "exploration": f"{self.algorithm.epsilon:6f}",
+                                "frame count": f"{info}",
+                                "time step": f"{time_step}"
+                            }
+                        )
+                    if time_step > plot_step * 10000:
+                        plot_step += 1
+                        self.painter.plot_average_reward_by_list(return_list,
+                                                                 window=1,
+                                                                 title="{} on Pong".format(self.algorithm.NAME),
+                                                                 curve_label="{}".format(
+                                                                     self.algorithm.NAME + "RND" if RND else ""),
+                                                                 color=self.colors[order - 1]
+                                                                 )
+                        return_list = []
+
+                    if (num_episodes / 10 * i + episode + 1) % save_model_freq == 0 and not test:
+                        torch.save({"main_net_state_dict": self.algorithm.main_net.state_dict(),
+                                    "target_net_state_dict": self.algorithm.target_net.state_dict()},
+                                   "./checkpoint/{}_model_Pong_{}_{}.pth".format(self.algorithm.NAME,
+                                                                                         num_episodes / 10 * i + episode + 1,
+                                                                                         "T" if RND else "F"))
+
+                    pbar.update(1)
+
+        self.painter.plot_average_reward_by_list(return_list,
+                                                 window=1,
+                                                 end=True,
+                                                 title="{} on SpaceInvader".format(self.algorithm.NAME),
+                                                 curve_label="{}".format(
+                                                     self.algorithm.NAME + "Super" if use_super else ""),
+                                                 color=self.colors[order - 1],
+                                                 saveName="Train result for {} rounds on Pong".format(
+                                                     num_episodes))
+
+    def train_Tetris(self,
+                   RND=False,
+                   use_super=False,
+                   *,
+                   rnd_weight_decay=1.0,
+                   painter_label=1,
+                   PRE_PROCESS=True,
+                   order=1,
+                   test=False):
+
+        env = gymnasium.make("ALE/Tetris-v5")
+        self.env = env
+        num_episodes = self.args.num_episodes
+        if test:
+            self.algorithm.epsilon = 0.001
+
+        save_model_freq = num_episodes // 5
+
+        loss_list = []
+        return_list = []
+
+        plot_step = 1
+        time_step = 1
+
+        if test:
+            pass
+        else:
+            self.algorithm.memory_reset()
+            self.collect_memories(RND)
+        for i in range(10):
+            with tqdm(total=int(num_episodes / 10), desc=f"Iteration {i}") as pbar:
+
+                for episode in range(num_episodes // 10):
+                    state, info = env.reset()
+                    state = state[28:-5, 20:65]
+
+                    episode_reward = 0
+                    episode_loss = 0
+
+                    done = False
+                    while not done:
+                        # plt.imshow(state)
+                        # plt.axis('off')
+                        # plt.show()
+                        state = self.preprocess(state) / 255.
+                        current_index = self.algorithm.memory.store_memory_obs(state)
+                        encoded_obs = self.algorithm.memory.encoder_recent_observation()
+                        # # encoded_obs = torch.from_numpy(encoded_obs).unsqueeze(0).to(torch.float32) / 255.0
+                        # encoded_obs = self.preprocess(encoded_obs)
+                        q_value, action = self.algorithm.select_action(encoded_obs)
+                        s_prime, reward, done, _, _ = env.step(action)
+                        # reward /= 100
+                        s_prime = s_prime[28:-5, 20:65]
 
                         if RND:
                             predict, target = self.rnd(encoded_obs)

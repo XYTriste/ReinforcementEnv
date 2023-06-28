@@ -5,15 +5,15 @@
 # @software: PyCharm
 import copy
 
-
 from Algorithm import *
 from Agent import *
 import matplotlib.pyplot as plt
 
+args = SetupArgs().get_args()
 
 
 def mountaincar_DQN():
-    args = SetupArgs().get_args()
+    global args
 
     args.num_episodes = 1500
     args.INPUT_DIM = 2
@@ -40,7 +40,8 @@ def mountaincar_DQN():
 
 
 def blackjack_actor_critic():
-    args = SetupArgs().get_args()
+    global args
+
     args.env_name = "Blackjack-v1"
     args.num_episodes = 20000
     args.INPUT_DIM = 2
@@ -61,7 +62,7 @@ def blackjack_actor_critic():
 
 
 def montezuma_revenge():
-    args = SetupArgs().get_args()
+    global args
 
     args.num_episodes = 2000
     args.INPUT_DIM = 512
@@ -77,7 +78,7 @@ def montezuma_revenge():
 
 
 def breakout():
-    args = SetupArgs().get_args()
+    global args
 
     args.num_episodes = 2000
     args.INPUT_DIM = 4
@@ -108,7 +109,7 @@ def breakout():
 
 
 def RoadRunner():
-    args = SetupArgs().get_args()
+    global args
 
     args.num_episodes = 20000
     args.INPUT_DIM = 4
@@ -143,7 +144,7 @@ def RoadRunner():
 
 
 def RoadRunner_Experiment():
-    args = SetupArgs().get_args()
+    global args
 
     args.num_episodes = 50000
     args.INPUT_DIM = 4
@@ -181,7 +182,7 @@ def RoadRunner_Experiment():
 
 
 def breakout_experiment():
-    args = SetupArgs().get_args()
+    global args
 
     args.num_episodes = 10000
     args.INPUT_DIM = 4
@@ -212,9 +213,9 @@ def breakout_experiment():
 
 
 def Seaquest_experiment():
-    args = SetupArgs().get_args()
+    global args
 
-    args.num_episodes = 50000
+    args.num_episodes = 20000
     args.INPUT_DIM = 4
     args.HIDDEN_DIM = 128
     args.OUTPUT_DIM = 18
@@ -241,6 +242,7 @@ def Seaquest_experiment():
                 "target_net_state_dict": double_dqn.target_net.state_dict()},
                "checkpoint/DDQN_model_Seaquest_final.pth")
     plt.show()
+
 
 def Pong_experiment():
     args = SetupArgs().get_args()
@@ -272,34 +274,35 @@ def Pong_experiment():
                "checkpoint/DDQN_model_Pong_final.pth")
     plt.show()
 
-def Pong_experiment():
+
+def Tetris_experiment():
     args = SetupArgs().get_args()
 
-    args.num_episodes = 50000
+    args.num_episodes = 10000
     args.INPUT_DIM = 4
     args.HIDDEN_DIM = 128
-    args.OUTPUT_DIM = 6
+    args.OUTPUT_DIM = 5
     args.HIDDEN_DIM_NUM = 5
 
     # checkpoint = torch.load('./checkpoint/DQN_model_breakout_450.0.pth')
 
     dqn = DQN_CNN_Super(args)
-    double_dqn = DQN_CNN(args, NAME="DDQN")
-    double_dqn.main_net.load_state_dict(dqn.main_net.state_dict())
-    double_dqn.target_net.load_state_dict(dqn.target_net.state_dict())
+    # double_dqn = DQN_CNN(args, NAME="DDQN")
+    # double_dqn.main_net.load_state_dict(dqn.main_net.state_dict())
+    # double_dqn.target_net.load_state_dict(dqn.target_net.state_dict())
     # double_dqn.main_net.load_state_dict(checkpoint['main_net_state_dict'])
     # double_dqn.target_net.load_state_dict(checkpoint['target_net_state_dict'])
     agent1 = Agent_Experiment(args, dqn)
-    agent1.train_Pong(use_super=True)
+    agent1.train_Tetris(use_super=True)
 
     # agent2 = Agent(args, double_dqn)
     # agent2.train_breakout(RND=True, order=2)
 
     torch.save({"main_net_state_dict": dqn.main_net.state_dict(),
-                "target_net_state_dict": dqn.target_net.state_dict()}, "checkpoint/dqn_model_Pong_final.pth")
-    torch.save({"main_net_state_dict": double_dqn.main_net.state_dict(),
-                "target_net_state_dict": double_dqn.target_net.state_dict()},
-               "checkpoint/DDQN_model_Pong_final.pth")
+                "target_net_state_dict": dqn.target_net.state_dict()}, "checkpoint/dqn_model_Tetris_final.pth")
+    # torch.save({"main_net_state_dict": double_dqn.main_net.state_dict(),
+    #             "target_net_state_dict": double_dqn.target_net.state_dict()},
+    #            "checkpoint/DDQN_model_Pong_final.pth")
     plt.show()
 
 
