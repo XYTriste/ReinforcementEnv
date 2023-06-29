@@ -592,7 +592,7 @@ class Agent_Experiment:
     def get_exploration_cofficient(self, x, N):
         if x < N / 40:
             return 1
-        elif N / 40 <= x < N / 2:
+        elif N / 40 <= x < N * 0.90:
             epsilon = 1 - 0.9 * (x - N / 40) / (N / 2 - N / 40)
             return epsilon
         else:
@@ -628,7 +628,7 @@ class Agent_Experiment:
 
     def collect_memories(self, RND=False):
         last_obs, _ = self.env.reset()
-        last_obs = last_obs[35:, :]
+        last_obs = last_obs[105: 180][:]
         for step in tqdm(range(self.algorithm.memory.learning_starts)):
             last_obs = self.preprocess(last_obs) / 255.
             cur_index = self.algorithm.memory.store_memory_obs(last_obs)
@@ -637,7 +637,7 @@ class Agent_Experiment:
             action = self.env.action_space.sample()
             # interact with env
             obs, reward, done, info, _ = self.env.step(action)
-            obs = obs[35:, :]
+            obs = obs[105: 180][:]
             reward /= 100
             if RND:
                 predict, target = self.rnd(encoded_obs)
@@ -651,7 +651,7 @@ class Agent_Experiment:
 
             if done:
                 last_obs, _ = self.env.reset()
-                last_obs = last_obs[35:, :]
+                last_obs = last_obs[105: 180][:]
 
             last_obs = obs
 
@@ -682,7 +682,7 @@ class Agent_Experiment:
             env = gymnasium.make("ALE/RoadRunner-v5", render_mode="human")
         else:
             self.algorithm.memory_reset()
-            # self.collect_memories(RND)
+            self.collect_memories(RND)
 
         param1 = list(self.algorithm.main_net.parameters())
         param2 = list(self.algorithm.super_net.model.parameters())
@@ -764,13 +764,13 @@ class Agent_Experiment:
                                 "time step": f"{time_step}"
                             }
                         )
-                    if time_step > plot_step * 10000:
+                    if len(return_list) == 10:
                         plot_step += 1
                         self.painter.plot_average_reward_by_list(return_list,
                                                                  window=1,
                                                                  title="{} on RoadRunner".format(self.algorithm.NAME),
                                                                  curve_label="{}".format(
-                                                                     self.algorithm.NAME + "RND" if RND else ""),
+                                                                     self.algorithm.NAME + ("Super" if use_super else "")),
                                                                  color=self.colors[order - 1]
                                                                  )
                         return_list = []
@@ -782,6 +782,7 @@ class Agent_Experiment:
                                                                                                num_episodes / 10 * i + episode + 1),
                                                                                        "T" if RND else "F"))
                     pbar.update(1)
+        plt.legend()
         self.painter.plot_average_reward_by_list(return_list,
                                                  window=1,
                                                  end=True,

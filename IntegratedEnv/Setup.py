@@ -9,6 +9,7 @@ from Algorithm import *
 from Agent import *
 import matplotlib.pyplot as plt
 
+
 args = SetupArgs().get_args()
 
 
@@ -175,9 +176,9 @@ def RoadRunner_Experiment():
     # agent2 = Agent(args, double_dqn)
     # agent2.train_RoadRunner(RND=False, order=2)
     #
-    torch.save({"main_net_state_dict": double_dqn.main_net.state_dict(),
-                "target_net_state_dict": double_dqn.target_net.state_dict()},
-               "checkpoint/dqn_model_RoadRunner_{}_final.pth".format(args.num_episodes))
+    # torch.save({"main_net_state_dict": double_dqn.main_net.state_dict(),
+    #             "target_net_state_dict": double_dqn.target_net.state_dict()},
+    #            "checkpoint/dqn_model_RoadRunner_{}_final.pth".format(args.num_episodes))
     plt.show()
 
 
@@ -307,4 +308,4 @@ def Tetris_experiment():
 
 
 if __name__ == "__main__":
-    Seaquest_experiment()
+    RoadRunner_Experiment()
