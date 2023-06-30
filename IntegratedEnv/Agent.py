@@ -593,8 +593,8 @@ class Agent_Experiment:
     def get_exploration_cofficient(self, x, N):
         if x < N / 40:
             return 1
-        elif N / 40 <= x < N * 0.90:
-            epsilon = 1 - 0.9 * (x - N / 40) / (N * 0.9 - N / 40)
+        elif N / 40 <= x < N * 0.75:
+            epsilon = 1 - 0.9 * (x - N / 40) / (N * 0.75 - N / 40)
             return epsilon
         else:
             return 0.1
@@ -815,6 +815,9 @@ class Agent_Experiment:
         loss_list = []
         return_list = []
 
+        time_step = 0
+        plot_step = 1
+
         if test:
             pass
         else:
@@ -851,7 +854,7 @@ class Agent_Experiment:
                             intrinsic_reward = self.algorithm.get_super_reward(q_value, encoded_obs, action, reward)
                             # self.Specify_State(encoded_obs, action)
                             # update_reward = 0.6 * reward + 0.4 * intrinsic_reward
-                            update_reward = reward + 0.4 * intrinsic_reward / (np.log(reward + 1) + 1)
+                            update_reward = reward + 0.3 * intrinsic_reward
                         else:
                             update_reward = reward
 
@@ -864,6 +867,7 @@ class Agent_Experiment:
                         episode_loss += loss
 
                         state = s_prime
+                        time_step += 1
 
                     return_list.append(episode_reward)
                     loss_list.append(episode_loss)
@@ -891,7 +895,8 @@ class Agent_Experiment:
                                 "frame count": f"{info}"
                             }
                         )
-                    if len(return_list) == 20:
+                    if time_step > plot_step * 1000:
+                        plot_step += 1
                         self.painter.plot_average_reward_by_list(return_list,
                                                                  window=1,
                                                                  title="{} on breakout".format(self.algorithm.NAME),
@@ -913,7 +918,7 @@ class Agent_Experiment:
         self.painter.plot_average_reward_by_list(return_list,
                                                  window=1,
                                                  end=True,
-                                                 title="{} on RoadRunner".format(self.algorithm.NAME),
+                                                 title="{} on breakout".format(self.algorithm.NAME),
                                                  curve_label="{}".format(
                                                      self.algorithm.NAME + "Super" if use_super else ""),
                                                  color=self.colors[order - 1],

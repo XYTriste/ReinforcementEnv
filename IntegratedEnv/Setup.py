@@ -183,7 +183,7 @@ def RoadRunner_Experiment():
 def breakout_experiment():
     args = SetupArgs().get_args()
 
-    args.num_episodes = 5000
+    args.num_episodes = 1000
     args.INPUT_DIM = 4
     args.HIDDEN_DIM = 128
     args.OUTPUT_DIM = 4
