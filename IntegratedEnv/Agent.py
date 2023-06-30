@@ -6,7 +6,6 @@
 import math
 
 import gymnasium
-import numpy as np
 import torch
 from matplotlib import pyplot as plt
 from sympy import Piecewise
@@ -815,9 +814,6 @@ class Agent_Experiment:
         loss_list = []
         return_list = []
 
-        time_step = 0
-        plot_step = 1
-
         if test:
             pass
         else:
@@ -853,7 +849,6 @@ class Agent_Experiment:
                             self.get_intrinsic_reward_count += 1
                             intrinsic_reward = self.algorithm.get_super_reward(q_value, encoded_obs, action, reward)
                             # self.Specify_State(encoded_obs, action)
-                            # update_reward = 0.6 * reward + 0.4 * intrinsic_reward
                             update_reward = reward + 0.3 * intrinsic_reward
                         else:
                             update_reward = reward
@@ -867,7 +862,6 @@ class Agent_Experiment:
                         episode_loss += loss
 
                         state = s_prime
-                        time_step += 1
 
                     return_list.append(episode_reward)
                     loss_list.append(episode_loss)
@@ -895,8 +889,7 @@ class Agent_Experiment:
                                 "frame count": f"{info}"
                             }
                         )
-                    if time_step > plot_step * 1000:
-                        plot_step += 1
+                    if len(return_list) == 20:
                         self.painter.plot_average_reward_by_list(return_list,
                                                                  window=1,
                                                                  title="{} on breakout".format(self.algorithm.NAME),
@@ -914,7 +907,7 @@ class Agent_Experiment:
                                                                                      "T" if RND else "F"))
 
                     pbar.update(1)
-        plt.legend()
+
         self.painter.plot_average_reward_by_list(return_list,
                                                  window=1,
                                                  end=True,
@@ -1121,8 +1114,7 @@ class Agent_Experiment:
                             self.get_intrinsic_reward_count += 1
                             intrinsic_reward = self.algorithm.get_super_reward(q_value, encoded_obs, action, reward)
                             # self.Specify_State(encoded_obs, action)
-                            # update_reward = 0.6 * reward + 0.4 * intrinsic_reward
-                            update_reward = reward + 0.5 * intrinsic_reward
+                            update_reward = 0.6 * reward + 0.4 * intrinsic_reward
                         else:
                             update_reward = reward
 
@@ -1136,9 +1128,9 @@ class Agent_Experiment:
 
                         state = s_prime
 
-                        # self.algorithm.epsilon = self.algorithm.decay_end + (
-                        #         self.algorithm.decay_start - self.algorithm.decay_end) * \
-                        #                          math.exp(-1. * self.algorithm.steps_done / self.algorithm.decay_step)
+                        self.algorithm.epsilon = self.algorithm.decay_end + (
+                                self.algorithm.decay_start - self.algorithm.decay_end) * \
+                                                 math.exp(-1. * self.algorithm.steps_done / self.algorithm.decay_step)
                         self.algorithm.steps_done += 1
 
 
@@ -1148,8 +1140,8 @@ class Agent_Experiment:
                         # self.algorithm.epsilon *= 0.997
                         # if np.mean(return_list[-10:]) < 10.0 and self.algorithm.epsilon < 0.2:
                         #     self.algorithm.epsilon = 0.2
-                        self.algorithm.epsilon = self.get_exploration_cofficient(num_episodes / 10 * i + episode + 1,
-                                                                                 num_episodes)
+                        # self.algorithm.epsilon = self.get_exploration_cofficient(num_episodes / 10 * i + episode + 1,
+                        #                                                          num_episodes)
                         pass
 
                     # self.painter.plot_average_reward(episode_reward,
