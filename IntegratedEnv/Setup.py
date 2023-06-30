@@ -5,16 +5,15 @@
 # @software: PyCharm
 import copy
 
+
 from Algorithm import *
 from Agent import *
 import matplotlib.pyplot as plt
 
 
-args = SetupArgs().get_args()
-
 
 def mountaincar_DQN():
-    global args
+    args = SetupArgs().get_args()
 
     args.num_episodes = 1500
     args.INPUT_DIM = 2
@@ -41,8 +40,7 @@ def mountaincar_DQN():
 
 
 def blackjack_actor_critic():
-    global args
-
+    args = SetupArgs().get_args()
     args.env_name = "Blackjack-v1"
     args.num_episodes = 20000
     args.INPUT_DIM = 2
@@ -63,7 +61,7 @@ def blackjack_actor_critic():
 
 
 def montezuma_revenge():
-    global args
+    args = SetupArgs().get_args()
 
     args.num_episodes = 2000
     args.INPUT_DIM = 512
@@ -79,7 +77,7 @@ def montezuma_revenge():
 
 
 def breakout():
-    global args
+    args = SetupArgs().get_args()
 
     args.num_episodes = 2000
     args.INPUT_DIM = 4
@@ -110,7 +108,7 @@ def breakout():
 
 
 def RoadRunner():
-    global args
+    args = SetupArgs().get_args()
 
     args.num_episodes = 20000
     args.INPUT_DIM = 4
@@ -145,7 +143,7 @@ def RoadRunner():
 
 
 def RoadRunner_Experiment():
-    global args
+    args = SetupArgs().get_args()
 
     args.num_episodes = 50000
     args.INPUT_DIM = 4
@@ -176,16 +174,16 @@ def RoadRunner_Experiment():
     # agent2 = Agent(args, double_dqn)
     # agent2.train_RoadRunner(RND=False, order=2)
     #
-    # torch.save({"main_net_state_dict": double_dqn.main_net.state_dict(),
-    #             "target_net_state_dict": double_dqn.target_net.state_dict()},
-    #            "checkpoint/dqn_model_RoadRunner_{}_final.pth".format(args.num_episodes))
+    torch.save({"main_net_state_dict": double_dqn.main_net.state_dict(),
+                "target_net_state_dict": double_dqn.target_net.state_dict()},
+               "checkpoint/dqn_model_RoadRunner_{}_final.pth".format(args.num_episodes))
     plt.show()
 
 
 def breakout_experiment():
-    global args
+    args = SetupArgs().get_args()
 
-    args.num_episodes = 10000
+    args.num_episodes = 5000
     args.INPUT_DIM = 4
     args.HIDDEN_DIM = 128
     args.OUTPUT_DIM = 4
@@ -194,29 +192,30 @@ def breakout_experiment():
     # checkpoint = torch.load('./checkpoint/DQN_model_breakout_450.0.pth')
 
     dqn = DQN_CNN_Super(args)
-    double_dqn = DQN_CNN(args, NAME="DDQN")
-    double_dqn.main_net.load_state_dict(dqn.main_net.state_dict())
-    double_dqn.target_net.load_state_dict(dqn.target_net.state_dict())
+    dqncopy = copy.deepcopy(dqn)
+    # double_dqn = DQN_CNN(args, NAME="DDQN")
+    # double_dqn.main_net.load_state_dict(dqn.main_net.state_dict())
+    # double_dqn.target_net.load_state_dict(dqn.target_net.state_dict())
     # double_dqn.main_net.load_state_dict(checkpoint['main_net_state_dict'])
     # double_dqn.target_net.load_state_dict(checkpoint['target_net_state_dict'])
     agent1 = Agent_Experiment(args, dqn)
     agent1.train_breakout(use_super=True)
 
-    # agent2 = Agent(args, double_dqn)
-    # agent2.train_breakout(RND=True, order=2)
+    agent2 = Agent_Experiment(args, dqncopy)
+    agent2.train_breakout(order=2)
 
-    torch.save({"main_net_state_dict": dqn.main_net.state_dict(),
-                "target_net_state_dict": dqn.target_net.state_dict()}, "checkpoint/dqn_model_breakout_final.pth")
-    torch.save({"main_net_state_dict": double_dqn.main_net.state_dict(),
-                "target_net_state_dict": double_dqn.target_net.state_dict()},
-               "checkpoint/DDQN_model_breakout_final.pth")
+    # torch.save({"main_net_state_dict": dqn.main_net.state_dict(),
+    #             "target_net_state_dict": dqn.target_net.state_dict()}, "checkpoint/dqn_model_breakout_final.pth")
+    # torch.save({"main_net_state_dict": double_dqn.main_net.state_dict(),
+    #             "target_net_state_dict": double_dqn.target_net.state_dict()},
+    #            "checkpoint/DDQN_model_breakout_final.pth")
     plt.show()
 
 
 def Seaquest_experiment():
-    global args
+    args = SetupArgs().get_args()
 
-    args.num_episodes = 20000
+    args.num_episodes = 50000
     args.INPUT_DIM = 4
     args.HIDDEN_DIM = 128
     args.OUTPUT_DIM = 18
@@ -243,7 +242,6 @@ def Seaquest_experiment():
                 "target_net_state_dict": double_dqn.target_net.state_dict()},
                "checkpoint/DDQN_model_Seaquest_final.pth")
     plt.show()
-
 
 def Pong_experiment():
     args = SetupArgs().get_args()
@@ -275,37 +273,36 @@ def Pong_experiment():
                "checkpoint/DDQN_model_Pong_final.pth")
     plt.show()
 
-
-def Tetris_experiment():
+def Pong_experiment():
     args = SetupArgs().get_args()
 
-    args.num_episodes = 10000
+    args.num_episodes = 50000
     args.INPUT_DIM = 4
     args.HIDDEN_DIM = 128
-    args.OUTPUT_DIM = 5
+    args.OUTPUT_DIM = 6
     args.HIDDEN_DIM_NUM = 5
 
     # checkpoint = torch.load('./checkpoint/DQN_model_breakout_450.0.pth')
 
     dqn = DQN_CNN_Super(args)
-    # double_dqn = DQN_CNN(args, NAME="DDQN")
-    # double_dqn.main_net.load_state_dict(dqn.main_net.state_dict())
-    # double_dqn.target_net.load_state_dict(dqn.target_net.state_dict())
+    double_dqn = DQN_CNN(args, NAME="DDQN")
+    double_dqn.main_net.load_state_dict(dqn.main_net.state_dict())
+    double_dqn.target_net.load_state_dict(dqn.target_net.state_dict())
     # double_dqn.main_net.load_state_dict(checkpoint['main_net_state_dict'])
     # double_dqn.target_net.load_state_dict(checkpoint['target_net_state_dict'])
     agent1 = Agent_Experiment(args, dqn)
-    agent1.train_Tetris(use_super=True)
+    agent1.train_Pong(use_super=True)
 
     # agent2 = Agent(args, double_dqn)
     # agent2.train_breakout(RND=True, order=2)
 
     torch.save({"main_net_state_dict": dqn.main_net.state_dict(),
-                "target_net_state_dict": dqn.target_net.state_dict()}, "checkpoint/dqn_model_Tetris_final.pth")
-    # torch.save({"main_net_state_dict": double_dqn.main_net.state_dict(),
-    #             "target_net_state_dict": double_dqn.target_net.state_dict()},
-    #            "checkpoint/DDQN_model_Pong_final.pth")
+                "target_net_state_dict": dqn.target_net.state_dict()}, "checkpoint/dqn_model_Pong_final.pth")
+    torch.save({"main_net_state_dict": double_dqn.main_net.state_dict(),
+                "target_net_state_dict": double_dqn.target_net.state_dict()},
+               "checkpoint/DDQN_model_Pong_final.pth")
     plt.show()
 
 
 if __name__ == "__main__":
-    RoadRunner_Experiment()
+    breakout_experiment()
