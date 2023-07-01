@@ -849,7 +849,7 @@ class Agent_Experiment:
                             self.get_intrinsic_reward_count += 1
                             intrinsic_reward = self.algorithm.get_super_reward(q_value, encoded_obs, action, reward)
                             # self.Specify_State(encoded_obs, action)
-                            update_reward = reward + 0.3 * intrinsic_reward
+                            update_reward = reward + 0.6 * intrinsic_reward
                         else:
                             update_reward = reward
 

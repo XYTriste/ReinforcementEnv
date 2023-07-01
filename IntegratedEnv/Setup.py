@@ -204,7 +204,7 @@ def breakout_experiment():
     agent1.train_breakout(use_super=True)
 
     agent2 = Agent_Experiment(args, dqn2)
-    agent2.train_breakout(order=2, use_super=True)
+    agent2.train_breakout(order=2, use_super=False)
 
     # torch.save({"main_net_state_dict": dqn.main_net.state_dict(),
     #             "target_net_state_dict": dqn.target_net.state_dict()}, "checkpoint/dqn_model_breakout_final.pth")
