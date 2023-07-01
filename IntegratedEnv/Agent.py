@@ -628,7 +628,7 @@ class Agent_Experiment:
 
     def collect_memories(self, RND=False):
         last_obs, _ = self.env.reset()
-        last_obs = last_obs[20:, :]
+        last_obs = last_obs[105: 180][:]
         for step in tqdm(range(self.algorithm.memory.learning_starts)):
             last_obs = self.preprocess(last_obs) / 255.
             cur_index = self.algorithm.memory.store_memory_obs(last_obs)
@@ -637,8 +637,8 @@ class Agent_Experiment:
             action = self.env.action_space.sample()
             # interact with env
             obs, reward, done, info, _ = self.env.step(action)
-            obs = obs[20:, :]
-            # reward /= 100
+            obs = obs[105: 180][:]
+            reward /= 100
             if RND:
                 predict, target = self.rnd(encoded_obs)
                 intrinsic_reward = self.rnd.get_intrinsic_reward(predict, target, CALC=False).item()
@@ -651,7 +651,7 @@ class Agent_Experiment:
 
             if done:
                 last_obs, _ = self.env.reset()
-                last_obs = last_obs[20:, :]
+                last_obs = last_obs[105: 180][:]
 
             last_obs = obs
 
@@ -761,7 +761,8 @@ class Agent_Experiment:
                                 "loss of last 10 rounds": f"{np.mean(loss_list[-10:]):9f}",
                                 "exploration": f"{self.algorithm.epsilon:6f}",
                                 "info": f"{info}",
-                                "time step": f"{time_step}"
+                                "time step": f"{time_step}",
+                                "Super train count": f"{self.algorithm.super_train_count}"
                             }
                         )
                     if len(return_list) == 10:
@@ -883,10 +884,11 @@ class Agent_Experiment:
                         pbar.set_postfix(
                             {
                                 "episode": f"{num_episodes / 10 * i + episode + 1}",
-                                "return of last 10 rounds": f"{np.mean(return_list[-10:]):3f}",
-                                "loss of last 10 rounds": f"{np.mean(loss_list[-10:]):9f}",
+                                "return per 10 rounds": f"{np.mean(return_list[-10:]):3f}",
+                                "loss per 10 rounds": f"{np.mean(loss_list[-10:]):9f}",
                                 "exploration": f"{self.algorithm.epsilon:6f}",
-                                "frame count": f"{info}"
+                                "frame count": f"{info}",
+                                "Super train count": f"{self.algorithm.super_train_count}"
                             }
                         )
                     if len(return_list) == 20:
