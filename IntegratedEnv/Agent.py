@@ -592,11 +592,11 @@ class Agent_Experiment:
     def get_exploration_cofficient(self, x, N):
         if x < N / 40:
             return 1
-        elif N / 40 <= x < N * 0.75:
-            epsilon = 1 - 0.9 * (x - N / 40) / (N * 0.75 - N / 40)
+        elif N / 40 <= x < N / 2:
+            epsilon = 1 - 0.9 * (x - N / 40) / (N / 2 - N / 40)
             return epsilon
         else:
-            return 0.1
+            return 0.01
 
     def get_intrinsic_cofficient(self, x, N):
         if x < N / 40:
@@ -628,7 +628,7 @@ class Agent_Experiment:
 
     def collect_memories(self, RND=False):
         last_obs, _ = self.env.reset()
-        last_obs = last_obs[20:, :]
+        last_obs = last_obs[35:, :]
         for step in tqdm(range(self.algorithm.memory.learning_starts)):
             last_obs = self.preprocess(last_obs) / 255.
             cur_index = self.algorithm.memory.store_memory_obs(last_obs)
@@ -637,8 +637,8 @@ class Agent_Experiment:
             action = self.env.action_space.sample()
             # interact with env
             obs, reward, done, info, _ = self.env.step(action)
-            obs = obs[20:, :]
-            # reward /= 100
+            obs = obs[35:, :]
+            reward /= 100
             if RND:
                 predict, target = self.rnd(encoded_obs)
                 intrinsic_reward = self.rnd.get_intrinsic_reward(predict, target, CALC=False).item()
@@ -651,7 +651,7 @@ class Agent_Experiment:
 
             if done:
                 last_obs, _ = self.env.reset()
-                last_obs = last_obs[20:, :]
+                last_obs = last_obs[35:, :]
 
             last_obs = obs
 
@@ -682,7 +682,7 @@ class Agent_Experiment:
             env = gymnasium.make("ALE/RoadRunner-v5", render_mode="human")
         else:
             self.algorithm.memory_reset()
-            self.collect_memories(RND)
+            # self.collect_memories(RND)
 
         param1 = list(self.algorithm.main_net.parameters())
         param2 = list(self.algorithm.super_net.model.parameters())
@@ -764,13 +764,13 @@ class Agent_Experiment:
                                 "time step": f"{time_step}"
                             }
                         )
-                    if len(return_list) == 10:
+                    if time_step > plot_step * 10000:
                         plot_step += 1
                         self.painter.plot_average_reward_by_list(return_list,
                                                                  window=1,
                                                                  title="{} on RoadRunner".format(self.algorithm.NAME),
                                                                  curve_label="{}".format(
-                                                                     self.algorithm.NAME + ("Super" if use_super else "")),
+                                                                     self.algorithm.NAME + "RND" if RND else ""),
                                                                  color=self.colors[order - 1]
                                                                  )
                         return_list = []
@@ -782,7 +782,6 @@ class Agent_Experiment:
                                                                                                num_episodes / 10 * i + episode + 1),
                                                                                        "T" if RND else "F"))
                     pbar.update(1)
-        plt.legend()
         self.painter.plot_average_reward_by_list(return_list,
                                                  window=1,
                                                  end=True,
@@ -818,7 +817,7 @@ class Agent_Experiment:
             pass
         else:
             self.algorithm.memory_reset()
-            self.collect_memories(RND)
+            # self.collect_memories(RND)
         for i in range(10):
             with tqdm(total=int(num_episodes / 10), desc=f"Iteration {i}") as pbar:
 
@@ -836,7 +835,7 @@ class Agent_Experiment:
                         encoded_obs = self.algorithm.memory.encoder_recent_observation()
                         # # encoded_obs = torch.from_numpy(encoded_obs).unsqueeze(0).to(torch.float32) / 255.0
                         # encoded_obs = self.preprocess(encoded_obs)
-                        q_value, action = self.algorithm.select_action(encoded_obs)
+                        action = self.algorithm.select_action(encoded_obs)
                         s_prime, reward, done, _, _ = env.step(action)
                         s_prime = s_prime[20:, :]
 
@@ -847,9 +846,9 @@ class Agent_Experiment:
                             update_reward = (1 - self.rnd_weight) * reward + self.rnd_weight * intrinsic_reward
                         elif use_super:
                             self.get_intrinsic_reward_count += 1
-                            intrinsic_reward = self.algorithm.get_super_reward(q_value, encoded_obs, action, reward)
+                            intrinsic_reward = self.algorithm.get_super_reward(encoded_obs, action, reward)
                             # self.Specify_State(encoded_obs, action)
-                            update_reward = reward + 0.6 * intrinsic_reward
+                            update_reward = 0.6 * reward + 0.4 * intrinsic_reward
                         else:
                             update_reward = reward
 
@@ -911,7 +910,7 @@ class Agent_Experiment:
         self.painter.plot_average_reward_by_list(return_list,
                                                  window=1,
                                                  end=True,
-                                                 title="{} on breakout".format(self.algorithm.NAME),
+                                                 title="{} on RoadRunner".format(self.algorithm.NAME),
                                                  curve_label="{}".format(
                                                      self.algorithm.NAME + "Super" if use_super else ""),
                                                  color=self.colors[order - 1],
