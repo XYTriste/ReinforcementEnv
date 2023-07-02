@@ -6,11 +6,20 @@
 import copy
 import math
 
-
+import numpy as np
+import torch.cuda
 from Network import *
 from Tools import *
 from replaybuffer import *
 from collections import deque
+
+from labml import tracker, experiment, logger, monit
+from labml.internal.configs.dynamic_hyperparam import FloatDynamicHyperParam
+from labml_helpers.schedule import Piecewise
+from labml_nn.rl.dqn import QFuncLoss
+from labml_nn.rl.dqn.model import Model
+from labml_nn.rl.dqn.replay_buffer import ReplayBuffer
+from Wrapper import Worker
 
 
 class DQN:
@@ -427,7 +436,7 @@ class DQN_CNN_Super:
         self.BATCH_SIZE = 32
 
         self.epsilon = self.args.epsilon
-        self.steps_done = 0     # 记录epsilon的衰减次数，得到下一次选择动作时的epsilon值。
+        self.steps_done = 0  # 记录epsilon的衰减次数，得到下一次选择动作时的epsilon值。
         self.decay_start = self.epsilon
         self.decay_end = 0.01
         self.decay_step = 1000000
@@ -553,3 +562,146 @@ class DQN_CNN_Super:
         self.optimizer.step()
 
         return loss.item()
+
+
+"""
+-----------------------------------------以下是采取了多线程训练的代码-------------------------------------------------
+"""
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+
+def obs_to_torch(obs: np.ndarray) -> torch.Tensor:
+    return torch.tensor(obs, dtype=torch.float32, device=device) / 255.
+
+
+class DQN_Super_Trainer:
+    def __init__(self, updates: int,
+                 epochs: int,
+                 n_workers: int,
+                 worker_steps: int,
+                 mini_batch_size: int,
+                 update_target_model: int,
+                 learning_rate: FloatDynamicHyperParam,
+                 args: SetupArgs):
+        self.INPUT_DIM = args.INPUT_DIM  # 输入层的大小
+        self.HIDDEN_DIM = args.HIDDEN_DIM  # 隐藏层的大小
+        self.OUTPUT_DIM = args.OUTPUT_DIM  # 输出层的大小
+        self.HIDDEN_DIM_NUM = args.HIDDEN_DIM_NUM  # 隐藏层的数量
+
+        self.n_workers = n_workers
+        self.worker_steps = worker_steps
+        self.train_epochs = epochs
+        self.updates = updates
+        self.mini_batch_size = mini_batch_size
+        self.update_target_model_frequency = update_target_model
+        self.learning_rate = learning_rate
+        self.exploration_coefficient = Piecewise(
+            [
+                (0, 1.0),
+                (25_000, 0.1),
+                (self.updates / 2, 0.01)
+            ], outside_value=0.01
+        )
+        self.prioritized_replay_beta = Piecewise(
+            [
+                (0, 0.4),
+                (self.updates, 1)
+            ], outside_value=1
+        )
+        self.replay_buffer = ReplayBuffer(2 ** 14, 0.6)
+        self.main_net = Model().to(device)
+        self.target_net = Model().to(device)
+        self.workers = [Worker(args, 47 + i, i) for i in range(self.n_workers)]
+        self.obs = np.zeros((self.n_workers, 4, 84, 84), dtype=np.uint8)
+
+        for worker in self.workers:
+            worker.child.send(("reset", None))
+
+        for i, worker in enumerate(self.workers):
+            recv, info = worker.child.recv()
+            self.obs[i] = recv
+
+        self.loss_func = QFuncLoss(0.99)  # discount factor = 0.99
+        self.optimizer = torch.optim.Adam(self.main_net.parameters(), lr=2.5e-4)
+
+    @torch.no_grad()
+    def select_action(self, q_value, exploration_coefficient: float):
+        greedy_action = torch.argmax(q_value, dim=-1)
+        random_action = torch.randint(q_value.shape[-1], greedy_action.shape, device=q_value.device)
+        is_choose_rand = torch.rand(greedy_action.shape, device=q_value.device) < exploration_coefficient
+        return torch.where(is_choose_rand, random_action, greedy_action).cpu().numpy()
+
+    @torch.no_grad()
+    def sample(self, exploration_coefficient: float):
+        for t in range(self.worker_steps):
+            q_value = self.main_net(obs_to_torch(self.obs))
+            actions = self.select_action(q_value, exploration_coefficient)
+
+            for w, worker in enumerate(self.workers):
+                worker.child.send(("step", actions[w]))
+
+            for w, worker in enumerate(self.workers):
+                s_prime, reward, done, info, _ = worker.child.recv()
+                self.replay_buffer.add(self.obs[w], actions[w], reward, s_prime, done)
+
+                if info:
+                    tracker.add('reward', info['reward'])
+                    tracker.add('length', info['length'])
+
+                self.obs[w] = s_prime
+
+    def learn(self, beta: float):
+        for _ in range(self.train_epochs):
+            samples = self.replay_buffer.sample(self.mini_batch_size, beta)
+            q_value = self.main_net(obs_to_torch(samples['obs']))
+
+            with torch.no_grad():
+                double_q_value = self.main_net(obs_to_torch(samples['next_obs']))
+                target_q_value = self.target_net(obs_to_torch(samples['next_obs']))
+
+            td_error, loss = self.loss_func(q_value,
+                                            q_value.new_tensor(samples['action']),
+                                            double_q_value, target_q_value,
+                                            q_value.new_tensor(samples['done']),
+                                            q_value.new_tensor(samples['reward']),
+                                            q_value.new_tensor(samples['weights']))
+
+            new_priorities = np.abs(td_error.cpu().numpy()) + 1e-6
+            self.replay_buffer.update_priorities(samples['indexes'], new_priorities)
+
+            for pg in self.optimizer.param_groups:
+                pg['lr'] = self.learning_rate()
+
+            self.optimizer.zero_grad()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.main_net.parameters(), max_norm=0.5)
+            self.optimizer.step()
+
+            return loss.item()
+
+    def run_training_loop(self):
+        tracker.set_queue('reward', 100, True)
+        tracker.set_queue('length', 100, True)
+
+        self.target_net.load_state_dict(self.main_net.state_dict())
+        for update in monit.loop(self.updates):
+            exploration = self.exploration_coefficient(update)
+            tracker.add('exploration', exploration)
+
+            beta = self.prioritized_replay_beta(update)
+            tracker.add('beta', beta)
+
+            self.sample(exploration)
+            if self.replay_buffer.is_full():
+                self.learn(beta)
+
+                if update % self.update_target_model_frequency == 0:
+                    self.target_net.load_state_dict(self.main_net.state_dict())
+
+            tracker.save()
+            if (update + 1) % 1000 == 0:
+                logger.log()
+
+    def destroy(self):
+        for worker in self.workers:
+            worker.child.send(("close", None))

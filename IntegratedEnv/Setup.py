@@ -8,6 +8,9 @@ import copy
 from Algorithm import *
 from Agent import *
 import matplotlib.pyplot as plt
+from labml import experiment
+from labml.internal.configs.dynamic_hyperparam import FloatDynamicHyperParam
+from Algorithm import DQN_Super_Trainer
 
 
 def mountaincar_DQN():
@@ -143,7 +146,7 @@ def RoadRunner():
 def RoadRunner_Experiment():
     args = SetupArgs().get_args()
 
-    args.num_episodes = 20000
+    args.num_episodes = 10000
     args.INPUT_DIM = 4
     args.HIDDEN_DIM = 128
     args.OUTPUT_DIM = 18
@@ -277,5 +280,42 @@ def Pong_experiment():
     plt.show()
 
 
+"""
+--------------------------以下是实现了优先经验回放以及调用了库中实现DQN算法的内容
+"""
+
+
+def breakout_experiment_lib():
+    args = SetupArgs().get_args()
+
+    args.num_episodes = 15000
+    args.INPUT_DIM = 4
+    args.HIDDEN_DIM = 128
+    args.OUTPUT_DIM = 4
+    args.HIDDEN_DIM_NUM = 5
+
+    experiment.create(name="dqn")
+
+    configs = {
+        'updates': 1000000,
+        'epochs': 8,
+        'n_workers': 8,
+        'worker_steps': 4,
+        'mini_batch_size': 32,
+        'update_target_model': 250,
+        'learning_rate': FloatDynamicHyperParam(1e-4, (0, 1e-3)),
+        'args': args
+    }
+
+    experiment.configs(configs)
+
+    m = DQN_Super_Trainer(**configs)
+
+    with experiment.start():
+        m.run_training_loop()
+
+    m.destroy()
+
+
 if __name__ == "__main__":
-    RoadRunner_Experiment()
+    breakout_experiment_lib()

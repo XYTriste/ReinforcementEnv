@@ -6,7 +6,7 @@
 import numpy as np
 
 
-class ReplayBuffer:
+class ReplayBuffer_unuse:
     def __init__(self, memory_capacity=100000, frame_history_len=4):
         self.MEMORY_CAPACITY = memory_capacity
         self.frame_history_len = frame_history_len

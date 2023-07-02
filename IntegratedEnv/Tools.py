@@ -20,7 +20,7 @@ class SetupArgs:
         parser.add_argument("--gamma", type=float, default=0.95, metavar='S', help='discounted rate')
         parser.add_argument('--epsilon', type=float, default=1, metavar='S', help='Exploration rate')
         parser.add_argument('--buffer_size', type=int, default=2 ** 16, metavar='S', help='Experience replay buffer size')
-        parser.add_argument('--env_name', type=str, default="MountainCar-v0", metavar='S', help="Environment name")
+        parser.add_argument('--env_name', type=str, default="ALE/Breakout-v5", metavar='S', help="Environment name")
 
         return parser.parse_args()
 
@@ -35,6 +35,8 @@ class Painter:
 
         self.average_data = []
         self.data_count = 0
+        self.colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
+        self.firstPainting = True   # 判断是不是第一次绘制曲线
 
     def plot_average_reward(self, reward, window, title, curve_label, color, end=False, xlabel="Episodes", ylabel="Average reward"):
         """
@@ -59,7 +61,7 @@ class Painter:
         else:
             plt.pause(0.001)
 
-    def plot_average_reward_by_list(self, list, window, title, curve_label, color, end=False, xlabel="steps",
+    def plot_average_reward_by_list(self, list, window, title, curve_label, colorIndex, end=False, xlabel="steps",
                             ylabel="Average return", saveName="default_name"):
         plt.ion()
         plt.figure(window)
@@ -77,15 +79,22 @@ class Painter:
         #         size = len(self.return_list) + 1
         #         new_data = self.return_list[-1] + (reward - self.return_list[-1]) / size
         #         self.return_list.append(new_data)
-        # average_data = np.average(list)
-        # if len(self.return_list) == 0:
-        #     self.return_list.append(average_data)
-        # else:
-        #     new_data = self.return_list[-1] + (average_data - self.return_list[-1]) / len(self.return_list)
-        #     self.return_list.append(new_data)
-        self.return_list.append(np.average(list))
-        plt.plot(np.array(self.return_list), color=color, label=curve_label, linewidth=0.8)
+
+        average_data = np.average(list)
+        if len(self.return_list) == 0:
+            self.return_list.append(average_data)
+        else:
+            new_data = self.return_list[-1] + (average_data - self.return_list[-1]) / len(self.return_list)
+            self.return_list.append(new_data)
+
+        # self.return_list.append(np.average(list))
+        plt.plot(np.array(self.return_list), color=self.colors[colorIndex], label=curve_label, linewidth=0.8)
         plt.pause(0.05)
+
+        if self.firstPainting:
+            plt.legend()
+            plt.show()
+            self.firstPainting = False
 
     def plot_episode_reward(self, reward_list, window, title, curve_label, color, end=False, xlabel="Episodes", ylabel="Returns"):
         plt.figure(window)

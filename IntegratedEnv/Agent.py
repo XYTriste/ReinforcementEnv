@@ -601,11 +601,11 @@ class Agent_Experiment:
     def get_intrinsic_cofficient(self, x, N):
         if x < N / 40:
             return 1
-        elif N / 40 <= x < N / 2:
-            epsilon = 1 - 0.9 * (x - N / 40) / (N / 2 - N / 40)
+        elif N / 40 <= x < N * 0.8:
+            epsilon = 1 - 0.9 * (x - N / 40) / (N * 0.8 - N / 40)
             return epsilon
         else:
-            return 0.01
+            return 0.1
 
     def Specify_State(self, state, action, state_count=7):
         if self.state_count < state_count:
@@ -723,7 +723,7 @@ class Agent_Experiment:
                             self.get_intrinsic_reward_count += 1
                             intrinsic_reward = self.algorithm.get_super_reward(q_value, encoded_obs, action, reward)
                             # self.Specify_State(encoded_obs, action)
-                            update_reward = 0.6 * reward + 0.4 * intrinsic_reward
+                            update_reward = reward + 0.6 * intrinsic_reward
                         else:
                             update_reward = reward
 
