@@ -15,16 +15,21 @@ class Game:
         self.env.seed(seed)
         self.obs_4 = np.zeros((4, 84, 84))
         self.obs_2_max = np.zeros((2, 84, 84))
+        self.returns = []
         self.rewards = []
         self.lives = 5  # Atari游戏中的生命值参数，该参数需要根据环境进行调整,但是reset方法中会动态调整。
 
-        self.painter = Painter()
+        self.width_start = args.obs_cut['width_start']
+        self.width_end = args.obs_cut['width_end']
+        self.height_start = args.obs_cut['height_start']
+        self.height_end = args.obs_cut['height_end']
 
     def step(self, action):
         reward = 0.
         done = False
         for i in range(4):
             s_prime, r, done, info, _ = self.env.step(action)
+            s_prime = s_prime[self.width_start: self.width_end, self.height_start: self.height_end]
 
             if i >= 2:
                 self.obs_2_max[i % 2] = self._process_obs(s_prime)
@@ -35,15 +40,9 @@ class Game:
                 break
 
         self.rewards.append(reward)
-        if self.gameNumber == 3 and len(self.rewards) % 20 == 0:
-            self.painter.plot_average_reward_by_list(self.rewards[-20:],
-                                                     window=1,
-                                                     title="{} on {}".format("DQN", self.env_name),
-                                                     curve_label="{}".format("DQN"),
-                                                     colorIndex=self.gameNumber
-                                                     )
 
         if done:
+            self.returns.append(sum(self.rewards))
             episode_info = {
                 "reward": sum(self.rewards),
                 "length": len(self.rewards)
@@ -59,6 +58,7 @@ class Game:
 
     def reset(self):
         obs, info = self.env.reset()
+        obs = obs[self.width_start: self.width_end, self.height_start: self.height_end]
         obs = self._process_obs(obs)
         for i in range(4):
             self.obs_4[i] = obs

@@ -69,8 +69,8 @@ class Painter:
         plt.ylabel(ylabel)
         plt.title(title)
         if end:
-            plt.ioff()
             plt.savefig('./train_pic/' + saveName + '.png')
+            plt.show()
             return
         # for reward in list:
         #     if len(self.return_list) == 0:
@@ -80,14 +80,14 @@ class Painter:
         #         new_data = self.return_list[-1] + (reward - self.return_list[-1]) / size
         #         self.return_list.append(new_data)
 
-        average_data = np.average(list)
-        if len(self.return_list) == 0:
-            self.return_list.append(average_data)
-        else:
-            new_data = self.return_list[-1] + (average_data - self.return_list[-1]) / len(self.return_list)
-            self.return_list.append(new_data)
+        # average_data = np.average(list)
+        # if len(self.return_list) == 0:
+        #     self.return_list.append(average_data)
+        # else:
+        #     new_data = self.return_list[-1] + (average_data - self.return_list[-1]) / len(self.return_list)
+        #     self.return_list.append(new_data)
 
-        # self.return_list.append(np.average(list))
+        self.return_list.append(np.average(list))
         plt.plot(np.array(self.return_list), color=self.colors[colorIndex], label=curve_label, linewidth=0.8)
         plt.pause(0.05)
 

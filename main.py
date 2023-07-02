@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 import matplotlib.pyplot as plt
 from sympy import Piecewise
@@ -156,10 +158,13 @@ line, = ax.plot(x, y)
 #     plt.pause(0.5)
 # plt.ioff()
 # plt.show()
-def get_exploration_cofficient(x, N):
-    epsilon = 0.5 - 0.4 * (x - N / 40) / (N / 2 - N / 40)
-    return epsilon
-
-
-for i in range(200):
-    print(get_exploration_cofficient(i, 200))
+# def get_exploration_cofficient(x, N):
+#     epsilon = 0.5 - 0.4 * (x - N / 40) / (N / 2 - N / 40)
+#     return epsilon
+# 
+# 
+# for i in range(200):
+#     print(get_exploration_cofficient(i, 200))
+from datetime import datetime
+formatted_time = datetime.now().strftime("%y_%m_%d_%H")
+print(formatted_time)

@@ -5,13 +5,15 @@
 # @software: PyCharm
 import copy
 
+import torch
 from Algorithm import *
 from Agent import *
 import matplotlib.pyplot as plt
 from labml import experiment
 from labml.internal.configs.dynamic_hyperparam import FloatDynamicHyperParam
 from Algorithm import DQN_Super_Trainer
-
+from datetime import datetime
+import os
 
 def mountaincar_DQN():
     args = SetupArgs().get_args()
@@ -293,6 +295,12 @@ def breakout_experiment_lib():
     args.HIDDEN_DIM = 128
     args.OUTPUT_DIM = 4
     args.HIDDEN_DIM_NUM = 5
+    args.obs_cut = {
+            'width_start': 20,
+            'width_end': 210,
+            'height_start': 0,
+            'height_end': 160
+    }
 
     experiment.create(name="dqn")
 
@@ -304,7 +312,7 @@ def breakout_experiment_lib():
         'mini_batch_size': 32,
         'update_target_model': 250,
         'learning_rate': FloatDynamicHyperParam(1e-4, (0, 1e-3)),
-        'args': args
+        'args': args,
     }
 
     experiment.configs(configs)

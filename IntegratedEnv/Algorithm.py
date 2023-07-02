@@ -4,8 +4,10 @@
 # @File: Algorithm.py
 # @software: PyCharm
 import copy
+import datetime
 import math
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch.cuda
 from Network import *
@@ -20,6 +22,9 @@ from labml_nn.rl.dqn import QFuncLoss
 from labml_nn.rl.dqn.model import Model
 from labml_nn.rl.dqn.replay_buffer import ReplayBuffer
 from Wrapper import Worker
+from Tools import Painter
+from datetime import datetime
+import os
 
 
 class DQN:
@@ -583,6 +588,7 @@ class DQN_Super_Trainer:
                  update_target_model: int,
                  learning_rate: FloatDynamicHyperParam,
                  args: SetupArgs):
+        self.args = args
         self.INPUT_DIM = args.INPUT_DIM  # 输入层的大小
         self.HIDDEN_DIM = args.HIDDEN_DIM  # 隐藏层的大小
         self.OUTPUT_DIM = args.OUTPUT_DIM  # 输出层的大小
@@ -598,7 +604,7 @@ class DQN_Super_Trainer:
         self.exploration_coefficient = Piecewise(
             [
                 (0, 1.0),
-                (25_000, 0.1),
+                (25000, 0.1),
                 (self.updates / 2, 0.01)
             ], outside_value=0.01
         )
@@ -624,6 +630,12 @@ class DQN_Super_Trainer:
         self.loss_func = QFuncLoss(0.99)  # discount factor = 0.99
         self.optimizer = torch.optim.Adam(self.main_net.parameters(), lr=2.5e-4)
 
+        self.painter = Painter()
+        self.returns = []
+        self.watch_processing = 3  # 指定绘制第几个线程的输出结果
+        for i in range(self.n_workers):
+            self.returns.append([])
+
     @torch.no_grad()
     def select_action(self, q_value, exploration_coefficient: float):
         greedy_action = torch.argmax(q_value, dim=-1)
@@ -647,6 +659,14 @@ class DQN_Super_Trainer:
                 if info:
                     tracker.add('reward', info['reward'])
                     tracker.add('length', info['length'])
+                    self.returns[w].append(info['reward'])
+                    if w == self.watch_processing and len(self.returns[w]) % 50 == 0:
+                        self.painter.plot_average_reward_by_list(self.returns[w][-50:],
+                                                                 window=1,
+                                                                 title="{} on {}".format("DQN", self.args.env_name),
+                                                                 curve_label="{}".format("DQN"),
+                                                                 colorIndex=self.watch_processing
+                                                                 )
 
                 self.obs[w] = s_prime
 
@@ -701,6 +721,25 @@ class DQN_Super_Trainer:
             tracker.save()
             if (update + 1) % 1000 == 0:
                 logger.log()
+
+    def save_info(self):
+        formatted_time = datetime.now().strftime("%y_%m_%d_%H")
+        current_path = os.getcwd()
+        model_name = current_path + "/checkpoint/dqn_{}_{}.pth".format(args.env_name.split("/")[-1], formatted_time)
+        torch.save({"main_net_state_dict": m.main_net.state_dict(),
+                    "target_net_state_dict": m.target_net.state_dict()}, model_name)
+        self.painter.plot_average_reward_by_list(None,
+                                                 window=1,
+                                                 title="{} on {}".format("DQN", self.args.env_name),
+                                                 curve_label="{}".format("DQN"),
+                                                 colorIndex=self.watch_processing,
+                                                 saveName=model_name,
+                                                 end=True
+                                                 )
+        for i in range(self.n_workers):
+            with open('./data/Process_{}_{}.txt'.format(i, datetime.datetime.now().strftime("%y_%m_%d_%H")),
+                      'w') as file_object:
+                file_object.write(str(self.returns[i]))
 
     def destroy(self):
         for worker in self.workers:
