@@ -19,7 +19,7 @@ from labml import tracker, experiment, logger, monit
 from labml.internal.configs.dynamic_hyperparam import FloatDynamicHyperParam
 from labml_helpers.schedule import Piecewise
 from labml_nn.rl.dqn import QFuncLoss
-from labml_nn.rl.dqn.model import Model
+from dqn_model import Model
 from labml_nn.rl.dqn.replay_buffer import ReplayBuffer
 from Wrapper import Worker
 from Tools import Painter
@@ -615,8 +615,8 @@ class DQN_Super_Trainer:
             ], outside_value=1
         )
         self.replay_buffer = ReplayBuffer(2 ** 14, 0.6)
-        self.main_net = Model().to(device)
-        self.target_net = Model().to(device)
+        self.main_net = Model(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM).to(device)
+        self.target_net = Model(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM).to(device)
         self.workers = [Worker(args, 47 + i, i) for i in range(self.n_workers)]
         self.obs = np.zeros((self.n_workers, 4, 84, 84), dtype=np.uint8)
 
@@ -721,11 +721,14 @@ class DQN_Super_Trainer:
             tracker.save()
             if (update + 1) % 1000 == 0:
                 logger.log()
+            if (update + 1) % 100000 == 0:
+                self.save_info(message="{}_rounds".format(update + 1))
+        self.save_info(message="final")
 
-    def save_info(self):
+    def save_info(self, message=""):
         formatted_time = datetime.now().strftime("%y_%m_%d_%H")
         current_path = os.getcwd()
-        model_name = current_path + "/checkpoint/dqn_{}_{}.pth".format(args.env_name.split("/")[-1], formatted_time)
+        model_name = current_path + "/checkpoint/dqn_{}_{}_{}.pth".format(self.args.env_name.split("/")[-1], formatted_time, message)
         torch.save({"main_net_state_dict": m.main_net.state_dict(),
                     "target_net_state_dict": m.target_net.state_dict()}, model_name)
         self.painter.plot_average_reward_by_list(None,

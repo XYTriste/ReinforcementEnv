@@ -4,6 +4,7 @@ import multiprocessing.connection
 import cv2
 import gymnasium
 import numpy as np
+import matplotlib.pyplot as plt
 from Tools import SetupArgs, Painter
 
 
@@ -23,6 +24,7 @@ class Game:
         self.width_end = args.obs_cut['width_end']
         self.height_start = args.obs_cut['height_start']
         self.height_end = args.obs_cut['height_end']
+        self.reward_cut = args.reward_cut
 
     def step(self, action):
         reward = 0.
@@ -30,6 +32,10 @@ class Game:
         for i in range(4):
             s_prime, r, done, info, _ = self.env.step(action)
             s_prime = s_prime[self.width_start: self.width_end, self.height_start: self.height_end]
+            r *= self.reward_cut
+            # plt.imshow(s_prime)
+            # plt.axis('off')
+            # plt.show()
 
             if i >= 2:
                 self.obs_2_max[i % 2] = self._process_obs(s_prime)
