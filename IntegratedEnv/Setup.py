@@ -15,6 +15,7 @@ from Algorithm import DQN_Super_Trainer
 from datetime import datetime
 import os
 
+
 def mountaincar_DQN():
     args = SetupArgs().get_args()
 
@@ -290,16 +291,15 @@ def Pong_experiment():
 def breakout_experiment_lib():
     args = SetupArgs().get_args()
 
-    args.num_episodes = 15000
     args.INPUT_DIM = 4
     args.HIDDEN_DIM = 128
     args.OUTPUT_DIM = 4
     args.HIDDEN_DIM_NUM = 5
     args.obs_cut = {
-            'width_start': 20,
-            'width_end': 210,
-            'height_start': 0,
-            'height_end': 160
+        'width_start': 20,
+        'width_end': 210,
+        'height_start': 0,
+        'height_end': 160
     }
 
     experiment.create(name="dqn")
@@ -325,5 +325,81 @@ def breakout_experiment_lib():
     m.destroy()
 
 
+def RoadRunner_experiment_lib():
+    args = SetupArgs().get_args()
+
+    args.INPUT_DIM = 4
+    args.HIDDEN_DIM = 128
+    args.OUTPUT_DIM = 18
+    args.HIDDEN_DIM_NUM = 5
+    args.obs_cut = {
+        'width_start': 0,
+        'width_end': 210,
+        'height_start': 0,
+        'height_end': 160
+    }
+    args.reward_cut = 1
+
+    experiment.create(name="dqn")
+
+    configs = {
+        'updates': 1000000,
+        'epochs': 8,
+        'n_workers': 8,
+        'worker_steps': 4,
+        'mini_batch_size': 32,
+        'update_target_model': 250,
+        'learning_rate': FloatDynamicHyperParam(1e-4, (0, 1e-3)),
+        'args': args,
+    }
+
+    experiment.configs(configs)
+
+    m = DQN_Super_Trainer(**configs)
+
+    with experiment.start():
+        m.run_training_loop()
+
+    m.destroy()
+
+
+def Seaquest_experiment_lib():
+    args = SetupArgs().get_args()
+
+    args.INPUT_DIM = 4
+    args.HIDDEN_DIM = 128
+    args.OUTPUT_DIM = 18
+    args.HIDDEN_DIM_NUM = 5
+    args.obs_cut = {
+        'width_start': 0,
+        'width_end': 210,
+        'height_start': 0,
+        'height_end': 160
+    }
+    args.reward_cut = 1
+
+    experiment.create(name="dqn")
+
+    configs = {
+        'updates': 1000000,
+        'epochs': 8,
+        'n_workers': 8,
+        'worker_steps': 4,
+        'mini_batch_size': 32,
+        'update_target_model': 250,
+        'learning_rate': FloatDynamicHyperParam(1e-4, (0, 1e-3)),
+        'args': args,
+    }
+
+    experiment.configs(configs)
+
+    m = DQN_Super_Trainer(**configs)
+
+    with experiment.start():
+        m.run_training_loop()
+
+    m.destroy()
+
+
 if __name__ == "__main__":
-    breakout_experiment_lib()
+    RoadRunner_experiment_lib()
