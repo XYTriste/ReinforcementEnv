@@ -292,7 +292,7 @@ def breakout_experiment_lib():
 
     args.INPUT_DIM = 4
     args.HIDDEN_DIM = 128
-    args.OUTPUT_DIM = 18
+    args.OUTPUT_DIM = 4
     args.HIDDEN_DIM_NUM = 5
     args.obs_cut = {
         'width_start': 20,

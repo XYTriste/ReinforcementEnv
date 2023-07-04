@@ -6,10 +6,13 @@
 import copy
 
 import torch
-
 from Algorithm import *
 from Agent import *
 import matplotlib.pyplot as plt
+from labml import experiment
+from labml.internal.configs.dynamic_hyperparam import FloatDynamicHyperParam
+from datetime import datetime
+import os
 
 
 def mountaincar_DQN():
@@ -145,7 +148,7 @@ def RoadRunner():
 def RoadRunner_Experiment():
     args = SetupArgs().get_args()
 
-    args.num_episodes = 5000
+    args.num_episodes = 10000
     args.INPUT_DIM = 4
     args.HIDDEN_DIM = 128
     args.OUTPUT_DIM = 18
@@ -167,16 +170,84 @@ def RoadRunner_Experiment():
     agent1.train_RoadRunner(use_super=True)
     agent2 = Agent_Experiment(args, dqnCopy)
     agent2.train_RoadRunner(use_super=False, order=2)
-    # torch.save({"main_net_state_dict": dqn.main_net.state_dict(),
-    #             "target_net_state_dict": dqn.target_net.state_dict()},
-    #            "checkpoint/dqn_model_RoadRunner_70000_final.pth")
+    torch.save({"main_net_state_dict": dqn.main_net.state_dict(),
+                "target_net_state_dict": dqn.target_net.state_dict()},
+               "checkpoint/dqn_super_model_RoadRunner_{}_final.pth".format(args.num_episodes))
 
     # agent2 = Agent(args, double_dqn)
     # agent2.train_RoadRunner(RND=False, order=2)
     #
+    torch.save({"main_net_state_dict": double_dqn.main_net.state_dict(),
+                "target_net_state_dict": double_dqn.target_net.state_dict()},
+               "checkpoint/dqn_model_RoadRunner_{}_final.pth".format(args.num_episodes))
+    plt.show()
+
+
+def breakout_experiment():
+    args = SetupArgs().get_args()
+
+    args.num_episodes = 15000
+    args.INPUT_DIM = 4
+    args.HIDDEN_DIM = 128
+    args.OUTPUT_DIM = 4
+    args.HIDDEN_DIM_NUM = 5
+
+    # checkpoint = torch.load('./checkpoint/DQN_model_breakout_450.0.pth')
+
+    dqn1 = DQN_CNN_Super(args)
+    dqn2 = DQN_CNN_Super(args)
+    # double_dqn = DQN_CNN(args, NAME="DDQN")
+    # double_dqn.main_net.load_state_dict(dqn.main_net.state_dict())
+    # double_dqn.target_net.load_state_dict(dqn.target_net.state_dict())
+    # double_dqn.main_net.load_state_dict(checkpoint['main_net_state_dict'])
+    # double_dqn.target_net.load_state_dict(checkpoint['target_net_state_dict'])
+
+    dqn2.main_net.load_state_dict(dqn1.main_net.state_dict())
+    dqn2.target_net.load_state_dict(dqn1.target_net.state_dict())
+
+    agent1 = Agent_Experiment(args, dqn1)
+    agent1.train_breakout(use_super=True)
+
+    agent2 = Agent_Experiment(args, dqn2)
+    agent2.train_breakout(order=2, use_super=False)
+
+    # torch.save({"main_net_state_dict": dqn.main_net.state_dict(),
+    #             "target_net_state_dict": dqn.target_net.state_dict()}, "checkpoint/dqn_model_breakout_final.pth")
     # torch.save({"main_net_state_dict": double_dqn.main_net.state_dict(),
     #             "target_net_state_dict": double_dqn.target_net.state_dict()},
-    #            "checkpoint/DDQN_model_RoadRunner_final.pth")
+    #            "checkpoint/DDQN_model_breakout_final.pth")
+    plt.show()
+
+
+def Seaquest_experiment():
+    args = SetupArgs().get_args()
+
+    args.num_episodes = 50000
+    args.INPUT_DIM = 4
+    args.HIDDEN_DIM = 128
+    args.OUTPUT_DIM = 18
+    args.HIDDEN_DIM_NUM = 5
+
+    # checkpoint = torch.load('./checkpoint/DQN_model_breakout_450.0.pth')
+
+    dqn = DQN_CNN_Super(args)
+    dqnCopy = copy.deepcopy(dqn)
+    double_dqn = DQN_CNN(args, NAME="DDQN")
+    double_dqn.main_net.load_state_dict(dqn.main_net.state_dict())
+    double_dqn.target_net.load_state_dict(dqn.target_net.state_dict())
+    # double_dqn.main_net.load_state_dict(checkpoint['main_net_state_dict'])
+    # double_dqn.target_net.load_state_dict(checkpoint['target_net_state_dict'])
+    agent1 = Agent_Experiment(args, dqn)
+    agent1.train_Seaquest(use_super=True)
+
+    agent2 = Agent(args, dqnCopy)
+    agent2.train_Seaquest(RND=False, order=2)
+
+    torch.save({"main_net_state_dict": dqn.main_net.state_dict(),
+                "target_net_state_dict": dqn.target_net.state_dict()}, "checkpoint/dqn_model_Seaquest_final.pth")
+    torch.save({"main_net_state_dict": double_dqn.main_net.state_dict(),
+                "target_net_state_dict": double_dqn.target_net.state_dict()},
+               "checkpoint/DDQN_model_Seaquest_final.pth")
     plt.show()
 
 
@@ -210,5 +281,163 @@ def Pong_experiment():
                "checkpoint/DDQN_model_Pong_final.pth")
     plt.show()
 
+
+"""
+--------------------------以下是实现了优先经验回放以及调用了库中实现DQN算法的内容
+"""
+
+
+def breakout_experiment_lib():
+    args = SetupArgs().get_args()
+
+    args.INPUT_DIM = 4
+    args.HIDDEN_DIM = 128
+    args.OUTPUT_DIM = 18
+    args.HIDDEN_DIM_NUM = 5
+    args.obs_cut = {
+        'width_start': 20,
+        'width_end': 210,
+        'height_start': 0,
+        'height_end': 160
+    }
+    args.reward_cut = 1
+
+    experiment.create(name="dqn")
+
+    configs = {
+        'updates': 1000000,
+        'epochs': 8,
+        'n_workers': 8,
+        'worker_steps': 4,
+        'mini_batch_size': 32,
+        'update_target_model': 250,
+        'learning_rate': FloatDynamicHyperParam(1e-4, (0, 1e-3)),
+        'args': args,
+        'use_super': True,
+        'test': False,
+        'algorithm_name': "DQN"
+    }
+    configs_copy = {
+        'updates': 1000000,
+        'epochs': 8,
+        'n_workers': 8,
+        'worker_steps': 4,
+        'mini_batch_size': 32,
+        'update_target_model': 250,
+        'learning_rate': FloatDynamicHyperParam(1e-4, (0, 1e-3)),
+        'args': args,
+        'use_super': False,
+        'test': False,
+        'algorithm_name': "DQN"
+    }
+
+    experiment.configs(configs)
+
+    m = DQN_Super_Trainer(**configs)
+    n = DQN_Super_Trainer(**configs_copy)
+
+    with experiment.start():
+        m.run_training_loop()
+        n.run_training_loop()
+
+    m.destroy()
+    n.destroy()
+
+
+def RoadRunner_experiment_lib():
+    args = SetupArgs().get_args()
+
+    args.INPUT_DIM = 4
+    args.HIDDEN_DIM = 128
+    args.OUTPUT_DIM = 18
+    args.HIDDEN_DIM_NUM = 5
+    args.obs_cut = {
+        'width_start': 105,
+        'width_end': 180,
+        'height_start': 0,
+        'height_end': 160
+    }
+    args.reward_cut = 1
+
+    experiment.create(name="dqn")
+
+    configs = {
+        'updates': 1000000,
+        'epochs': 8,
+        'n_workers': 14,
+        'worker_steps': 4,
+        'mini_batch_size': 32,
+        'update_target_model': 250,
+        'learning_rate': FloatDynamicHyperParam(1e-4, (0, 1e-3)),
+        'args': args,
+        'use_super': False,
+        'test': False,
+        'algorithm_name': "DQN"
+    }
+    configs_copy = {
+        'updates': 1000000,
+        'epochs': 8,
+        'n_workers': 14,
+        'worker_steps': 4,
+        'mini_batch_size': 32,
+        'update_target_model': 250,
+        'learning_rate': FloatDynamicHyperParam(1e-4, (0, 1e-3)),
+        'args': args,
+        'use_super': True,
+        'test': False,
+        'algorithm_name': "DQN"
+    }
+
+    experiment.configs(configs)
+
+    m = DQN_Super_Trainer(**configs)
+    n = DQN_Super_Trainer(**configs_copy)
+
+    with experiment.start():
+        m.run_training_loop()
+        n.run_training_loop()
+
+    m.destroy()
+    n.destroy()
+
+
+def Seaquest_experiment_lib():
+    args = SetupArgs().get_args()
+
+    args.INPUT_DIM = 4
+    args.HIDDEN_DIM = 128
+    args.OUTPUT_DIM = 18
+    args.HIDDEN_DIM_NUM = 5
+    args.obs_cut = {
+        'width_start': 0,
+        'width_end': 210,
+        'height_start': 0,
+        'height_end': 160
+    }
+    args.reward_cut = 1
+
+    experiment.create(name="dqn")
+
+    configs = {
+        'updates': 1000,
+        'epochs': 8,
+        'n_workers': 8,
+        'worker_steps': 4,
+        'mini_batch_size': 32,
+        'update_target_model': 250,
+        'learning_rate': FloatDynamicHyperParam(1e-4, (0, 1e-3)),
+        'args': args,
+    }
+
+    experiment.configs(configs)
+
+    m = DQN_Super_Trainer(**configs)
+
+    with experiment.start():
+        m.run_training_loop()
+
+    m.destroy()
+
+
 if __name__ == "__main__":
-    Pong_experiment()
+    breakout_experiment_lib()
