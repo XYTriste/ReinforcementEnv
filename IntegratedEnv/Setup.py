@@ -292,7 +292,7 @@ def breakout_experiment_lib():
 
     args.INPUT_DIM = 4
     args.HIDDEN_DIM = 128
-    args.OUTPUT_DIM = 4
+    args.OUTPUT_DIM = 18
     args.HIDDEN_DIM_NUM = 5
     args.obs_cut = {
         'width_start': 20,
@@ -300,28 +300,48 @@ def breakout_experiment_lib():
         'height_start': 0,
         'height_end': 160
     }
+    args.reward_cut = 1
 
     experiment.create(name="dqn")
 
     configs = {
-        'updates': 100000,
+        'updates': 1000000,
         'epochs': 8,
-        'n_workers': 4,
+        'n_workers': 8,
         'worker_steps': 4,
         'mini_batch_size': 32,
         'update_target_model': 250,
         'learning_rate': FloatDynamicHyperParam(1e-4, (0, 1e-3)),
         'args': args,
+        'use_super': True,
+        'test': False,
+        'algorithm_name': "DQN"
+    }
+    configs_copy = {
+        'updates': 1000000,
+        'epochs': 8,
+        'n_workers': 8,
+        'worker_steps': 4,
+        'mini_batch_size': 32,
+        'update_target_model': 250,
+        'learning_rate': FloatDynamicHyperParam(1e-4, (0, 1e-3)),
+        'args': args,
+        'use_super': False,
+        'test': False,
+        'algorithm_name': "DQN"
     }
 
     experiment.configs(configs)
 
     m = DQN_Super_Trainer(**configs)
+    n = DQN_Super_Trainer(**configs_copy)
 
     with experiment.start():
         m.run_training_loop()
+        n.run_training_loop()
 
     m.destroy()
+    n.destroy()
 
 
 def RoadRunner_experiment_lib():
@@ -420,4 +440,4 @@ def Seaquest_experiment_lib():
 
 
 if __name__ == "__main__":
-    RoadRunner_experiment_lib()
+    breakout_experiment_lib()

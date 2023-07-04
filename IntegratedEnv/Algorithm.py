@@ -362,17 +362,17 @@ class SuperBuffer:
         self.buffer = deque(maxlen=capacity)
 
     def add(self, state, action, target):
-        target = target.detach().cpu()  # target是网络输出，需要额外脱离gpu以及计算图
-        state = state.cpu()  # 这里的state是tensor
-        self.buffer.append((np.array(state), action, np.array(target)))
+        target_q = target.detach().cpu()  # target是网络输出，需要额外脱离gpu以及计算图
+        current_state = state.cpu()  # 这里的state是tensor
+        self.buffer.append((current_state, action, target_q))
 
     def sample(self, batch_size):
         # transitions = random.sample(self.buffer, batch_size)
         temp = list(self.buffer)
         transitions = temp[-batch_size:]
 
-        state, action, target = zip(*transitions)
-        return state, action, np.array(target)
+        state, action, target = transitions[0]
+        return state, action, target
 
     def change(self, fact):
         # 动态调整buff大小
@@ -404,11 +404,12 @@ class Super_net:
             return torch.tensor(0, dtype=torch.float)
         state, action, target = self.buffer.sample(self.batch_size)
 
-        states = torch.tensor(state, dtype=torch.float, device=self.device)
+        states = state.unsqueeze(0).to(self.device)
         actions = torch.tensor(action, dtype=torch.long, device=self.device)
-        target = torch.tensor(target, dtype=torch.float, device=self.device).view(-1, 1).squeeze(0)
+        target = target.to(self.device)
+        # target = torch.tensor(target, dtype=torch.float, device=self.device).view(-1, 1).squeeze(0)
 
-        super_value = self.model(states).squeeze(0)[actions].squeeze(0)
+        super_value = self.model(states).squeeze(0)[actions]
         # super_value.gather(1, actions)
 
         loss = self.loss_func(super_value, target)
