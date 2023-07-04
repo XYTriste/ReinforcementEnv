@@ -689,12 +689,9 @@ class DQN_Super_Trainer:
                     self.all_returns.append(info['reward'])
                     self.returns[w].append(info['reward'])
                     # if w == self.watch_processing and len(self.returns[w]) % 50 == 0:
-                    #     self.painter.plot_average_reward_by_list(self.returns[w][-50:],
-                    #                                              window=1,
-                    #                                              title="{} on {}".format("DQN", self.args.env_name),
-                    #                                              curve_label="{}".format("DQN" + " Super" if self.use_super else ""),
-                    #                                              colorIndex=self.watch_processing
-                    #                                              )
+                    # self.painter.plot_average_reward_by_list(self.returns[w][-50:], window=1, title="{} on {
+                    # }".format("DQN", self.args.env_name), curve_label="{}".format("DQN" + " Super" if
+                    # self.use_super else ""), colorIndex=self.watch_processing )
 
                 self.obs[w] = s_prime
 
