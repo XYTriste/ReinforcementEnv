@@ -765,7 +765,7 @@ class DQN_Super_Trainer:
                 logger.log()
             if (update + 1) % 100000 == 0 and not self.test:
                 message = "{}_rounds".format(update + 1) + "_super" if self.use_super else ""
-                self.save_info(message=message, rounds=self.updates)
+                self.save_info(message=message, rounds=update)
             if (update + 1) % 600000 == 0:
                 break
         if not self.test:
