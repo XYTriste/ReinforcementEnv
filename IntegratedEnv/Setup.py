@@ -333,8 +333,8 @@ def RoadRunner_experiment_lib():
     args.OUTPUT_DIM = 18
     args.HIDDEN_DIM_NUM = 5
     args.obs_cut = {
-        'width_start': 0,
-        'width_end': 210,
+        'width_start': 105,
+        'width_end': 180,
         'height_start': 0,
         'height_end': 160
     }
@@ -351,6 +351,7 @@ def RoadRunner_experiment_lib():
         'update_target_model': 250,
         'learning_rate': FloatDynamicHyperParam(1e-4, (0, 1e-3)),
         'args': args,
+        'test': True,
     }
 
     experiment.configs(configs)

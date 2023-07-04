@@ -587,12 +587,14 @@ class DQN_Super_Trainer:
                  mini_batch_size: int,
                  update_target_model: int,
                  learning_rate: FloatDynamicHyperParam,
-                 args: SetupArgs):
+                 args: SetupArgs,
+                 test: bool):
         self.args = args
         self.INPUT_DIM = args.INPUT_DIM  # 输入层的大小
         self.HIDDEN_DIM = args.HIDDEN_DIM  # 隐藏层的大小
         self.OUTPUT_DIM = args.OUTPUT_DIM  # 输出层的大小
         self.HIDDEN_DIM_NUM = args.HIDDEN_DIM_NUM  # 隐藏层的数量
+        self.test = test
 
         self.n_workers = n_workers
         self.worker_steps = worker_steps
@@ -601,13 +603,17 @@ class DQN_Super_Trainer:
         self.mini_batch_size = mini_batch_size
         self.update_target_model_frequency = update_target_model
         self.learning_rate = learning_rate
-        self.exploration_coefficient = Piecewise(
-            [
-                (0, 1.0),
-                (25000, 0.1),
-                (self.updates / 2, 0.01)
-            ], outside_value=0.01
-        )
+        if not self.test:
+            self.exploration_coefficient = Piecewise(
+                [
+                    (0, 1.0),
+                    (25000, 0.1),
+                    (self.updates / 2, 0.01)
+                ], outside_value=0.01
+            )
+        else:
+            self.n_workers = 1
+            self.exploration_coefficient = lambda x: 0.00001
         self.prioritized_replay_beta = Piecewise(
             [
                 (0, 0.4),
@@ -617,6 +623,11 @@ class DQN_Super_Trainer:
         self.replay_buffer = ReplayBuffer(2 ** 14, 0.6)
         self.main_net = Model(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM).to(device)
         self.target_net = Model(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM).to(device)
+        if self.test:
+            checkpoint = torch.load('./checkpoint/dqn_RoadRunner-v5_23_07_04_13_800000_rounds.pth')
+            self.main_net.load_state_dict(checkpoint['main_net_state_dict'])
+            self.target_net.load_state_dict(checkpoint['target_net_state_dict'])
+
         self.workers = [Worker(args, 47 + i, i) for i in range(self.n_workers)]
         self.obs = np.zeros((self.n_workers, 4, 84, 84), dtype=np.uint8)
 
@@ -700,8 +711,8 @@ class DQN_Super_Trainer:
             return loss.item()
 
     def run_training_loop(self):
-        tracker.set_queue('reward', 100, True)
-        tracker.set_queue('length', 100, True)
+        tracker.set_queue('reward', 100, True)  # 跟踪显示100回合的平均奖励
+        tracker.set_queue('length', 100, True)  # 跟踪显示100回合的平均回合长度
 
         self.target_net.load_state_dict(self.main_net.state_dict())
         for update in monit.loop(self.updates):
@@ -721,27 +732,29 @@ class DQN_Super_Trainer:
             tracker.save()
             if (update + 1) % 1000 == 0:
                 logger.log()
-            if (update + 1) % 100000 == 0:
+            if (update + 1) % 100000 == 0 and not self.test:
                 self.save_info(message="{}_rounds".format(update + 1))
-        self.save_info(message="final")
+        if not self.test:
+            self.save_info(message="final")
 
     def save_info(self, message=""):
         formatted_time = datetime.now().strftime("%y_%m_%d_%H")
-        current_path = os.getcwd()
-        model_name = current_path + "/checkpoint/dqn_{}_{}_{}.pth".format(self.args.env_name.split("/")[-1], formatted_time, message)
-        torch.save({"main_net_state_dict": m.main_net.state_dict(),
-                    "target_net_state_dict": m.target_net.state_dict()}, model_name)
+        name = self.args.env_name.split("/")[-1]
+        torch.save({"main_net_state_dict": self.main_net.state_dict(),
+                    "target_net_state_dict": self.target_net.state_dict()},
+                   "./checkpoint/dqn_{}_{}_{}.pth".format(name, formatted_time, message))
         self.painter.plot_average_reward_by_list(None,
                                                  window=1,
                                                  title="{} on {}".format("DQN", self.args.env_name),
                                                  curve_label="{}".format("DQN"),
                                                  colorIndex=self.watch_processing,
-                                                 saveName=model_name,
+                                                 savePath="./train_pic/dqn_{}_{}_{}.png".format(name, message,
+                                                                                                formatted_time),
                                                  end=True
                                                  )
         for i in range(self.n_workers):
-            with open('./data/Process_{}_{}.txt'.format(i, datetime.datetime.now().strftime("%y_%m_%d_%H")),
-                      'w') as file_object:
+            fileName = './data/Process_{}_{}.txt'.format(i, formatted_time)
+            with open(fileName, 'w') as file_object:
                 file_object.write(str(self.returns[i]))
 
     def destroy(self):

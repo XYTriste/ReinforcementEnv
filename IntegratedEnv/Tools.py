@@ -62,15 +62,15 @@ class Painter:
             plt.pause(0.001)
 
     def plot_average_reward_by_list(self, list, window, title, curve_label, colorIndex, end=False, xlabel="steps",
-                            ylabel="Average return", saveName="default_name"):
+                            ylabel="Average return", savePath="./train_pic/default_name.png"):
         plt.ion()
         plt.figure(window)
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
         plt.title(title)
         if end:
-            plt.savefig('./train_pic/' + saveName + '.png')
-            plt.show()
+            plt.savefig(savePath)
+            # plt.show()
             return
         # for reward in list:
         #     if len(self.return_list) == 0:
