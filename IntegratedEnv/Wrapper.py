@@ -12,7 +12,7 @@ class Game:
     def __init__(self, args: SetupArgs, seed, gameNumber):
         self.gameNumber = gameNumber
         self.env_name = args.env_name
-        self.env = gymnasium.make(args.env_name, render_mode="human")
+        self.env = gymnasium.make(args.env_name)
         self.env.seed(seed)
         self.obs_4 = np.zeros((4, 84, 84))
         self.obs_2_max = np.zeros((2, 84, 84))

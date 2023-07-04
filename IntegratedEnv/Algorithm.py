@@ -376,7 +376,7 @@ class SuperBuffer:
 
     def change(self, fact):
         # 动态调整buff大小
-        temp = self.buffer
+        temp = self.bufferModule
         self.buffer = deque(maxlen=self.capacity * fact)
         while len(temp) > 0:
             self.buffer.append(temp.pop())
@@ -403,10 +403,9 @@ class Super_net:
         if len(self.buffer.buffer) < self.batch_size:
             return torch.tensor(0, dtype=torch.float)
         state, action, target = self.buffer.sample(self.batch_size)
-        state = state[0][0]
 
-        states = torch.tensor(state, dtype=torch.float, device=self.device).unsqueeze(0)
-        actions = torch.tensor(action, dtype=torch.long, device=self.device).view(-1, 1)
+        states = torch.tensor(state, dtype=torch.float, device=self.device)
+        actions = torch.tensor(action, dtype=torch.long, device=self.device)
         target = torch.tensor(target, dtype=torch.float, device=self.device).view(-1, 1).squeeze(0)
 
         super_value = self.model(states).squeeze(0)[actions].squeeze(0)
@@ -588,13 +587,17 @@ class DQN_Super_Trainer:
                  update_target_model: int,
                  learning_rate: FloatDynamicHyperParam,
                  args: SetupArgs,
-                 test: bool):
+                 use_super: bool,
+                 test: bool,
+                 algorithm_name="DQN"):
         self.args = args
         self.INPUT_DIM = args.INPUT_DIM  # 输入层的大小
         self.HIDDEN_DIM = args.HIDDEN_DIM  # 隐藏层的大小
         self.OUTPUT_DIM = args.OUTPUT_DIM  # 输出层的大小
         self.HIDDEN_DIM_NUM = args.HIDDEN_DIM_NUM  # 隐藏层的数量
         self.test = test
+        self.use_super = use_super
+        self.algorithm_name = algorithm_name
 
         self.n_workers = n_workers
         self.worker_steps = worker_steps
@@ -607,7 +610,7 @@ class DQN_Super_Trainer:
             self.exploration_coefficient = Piecewise(
                 [
                     (0, 1.0),
-                    (25000, 0.1),
+                    (250, 0.1),
                     (self.updates / 2, 0.01)
                 ], outside_value=0.01
             )
@@ -623,6 +626,12 @@ class DQN_Super_Trainer:
         self.replay_buffer = ReplayBuffer(2 ** 14, 0.6)
         self.main_net = Model(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM).to(device)
         self.target_net = Model(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM).to(device)
+
+        self.main_copy = Model(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM).to(device)
+        self.main_copy.load_state_dict(self.main_net.state_dict())
+        self.super_net = Super_net(self.main_copy)
+        self.super_train_count = 0
+
         if self.test:
             checkpoint = torch.load('./checkpoint/dqn_RoadRunner-v5_23_07_04_13_800000_rounds.pth')
             self.main_net.load_state_dict(checkpoint['main_net_state_dict'])
@@ -639,10 +648,12 @@ class DQN_Super_Trainer:
             self.obs[i] = recv
 
         self.loss_func = QFuncLoss(0.99)  # discount factor = 0.99
+        self.l1loss_func = nn.L1Loss()
         self.optimizer = torch.optim.Adam(self.main_net.parameters(), lr=2.5e-4)
 
         self.painter = Painter()
         self.returns = []
+        self.all_returns = []  # 把所有线程中得到的结果进行保存
         self.watch_processing = 3  # 指定绘制第几个线程的输出结果
         for i in range(self.n_workers):
             self.returns.append([])
@@ -654,10 +665,10 @@ class DQN_Super_Trainer:
         is_choose_rand = torch.rand(greedy_action.shape, device=q_value.device) < exploration_coefficient
         return torch.where(is_choose_rand, random_action, greedy_action).cpu().numpy()
 
-    @torch.no_grad()
     def sample(self, exploration_coefficient: float):
         for t in range(self.worker_steps):
-            q_value = self.main_net(obs_to_torch(self.obs))
+            state = obs_to_torch(self.obs)
+            q_value = self.main_net(state)
             actions = self.select_action(q_value, exploration_coefficient)
 
             for w, worker in enumerate(self.workers):
@@ -665,21 +676,44 @@ class DQN_Super_Trainer:
 
             for w, worker in enumerate(self.workers):
                 s_prime, reward, done, info, _ = worker.child.recv()
-                self.replay_buffer.add(self.obs[w], actions[w], reward, s_prime, done)
+                if self.use_super:
+                    intrinsic_reward = self.get_super_reward(state[w], actions[w])
+                    update_reward = reward + 0.8 * intrinsic_reward
+                else:
+                    update_reward = reward
+                self.replay_buffer.add(self.obs[w], actions[w], update_reward, s_prime, done)
 
                 if info:
                     tracker.add('reward', info['reward'])
                     tracker.add('length', info['length'])
+                    self.all_returns.append(info['reward'])
                     self.returns[w].append(info['reward'])
-                    if w == self.watch_processing and len(self.returns[w]) % 50 == 0:
-                        self.painter.plot_average_reward_by_list(self.returns[w][-50:],
-                                                                 window=1,
-                                                                 title="{} on {}".format("DQN", self.args.env_name),
-                                                                 curve_label="{}".format("DQN"),
-                                                                 colorIndex=self.watch_processing
-                                                                 )
+                    # if w == self.watch_processing and len(self.returns[w]) % 50 == 0:
+                    #     self.painter.plot_average_reward_by_list(self.returns[w][-50:],
+                    #                                              window=1,
+                    #                                              title="{} on {}".format("DQN", self.args.env_name),
+                    #                                              curve_label="{}".format("DQN" + " Super" if self.use_super else ""),
+                    #                                              colorIndex=self.watch_processing
+                    #                                              )
 
                 self.obs[w] = s_prime
+
+    def get_super_reward(self, state, action):
+        q_values = self.main_net(state).squeeze(0)
+        q_value = q_values[action]
+        super_value = self.super_net(state).squeeze(0)
+        super_value = super_value[action]
+        reward_finally = 0
+        if super_value < q_value:
+            self.super_train_count += 1
+            self.super_net.buffer.add(state, action, q_value)
+            self.super_net.learn()
+            reward_loss = self.l1loss_func(super_value, q_value).item()
+            reward_distance = self.super_net(state).squeeze(0)[action].item() - super_value.item()
+
+            reward_finally = min(reward_loss, reward_distance)
+
+        return reward_finally
 
     def learn(self, beta: float):
         for _ in range(self.train_epochs):
@@ -733,11 +767,15 @@ class DQN_Super_Trainer:
             if (update + 1) % 1000 == 0:
                 logger.log()
             if (update + 1) % 100000 == 0 and not self.test:
-                self.save_info(message="{}_rounds".format(update + 1))
+                message = "{}_rounds".format(update + 1) + "_super" if self.use_super else ""
+                self.save_info(message=message, rounds=self.updates)
+            if (update + 1) % 600000 == 0:
+                break
         if not self.test:
-            self.save_info(message="final")
+            message = "final" + "_super" if self.use_super else ""
+            self.save_info(message=message, rounds=self.updates)
 
-    def save_info(self, message=""):
+    def save_info(self, message="", rounds=0):
         formatted_time = datetime.now().strftime("%y_%m_%d_%H")
         name = self.args.env_name.split("/")[-1]
         torch.save({"main_net_state_dict": self.main_net.state_dict(),
@@ -745,17 +783,21 @@ class DQN_Super_Trainer:
                    "./checkpoint/dqn_{}_{}_{}.pth".format(name, formatted_time, message))
         self.painter.plot_average_reward_by_list(None,
                                                  window=1,
-                                                 title="{} on {}".format("DQN", self.args.env_name),
-                                                 curve_label="{}".format("DQN"),
+                                                 title="{} on {}".format("DQN" + " Super" if self.use_super else "", self.args.env_name),
+                                                 curve_label="{}".format("DQN" + " Super" if self.use_super else ""),
                                                  colorIndex=self.watch_processing,
                                                  savePath="./train_pic/dqn_{}_{}_{}.png".format(name, message,
                                                                                                 formatted_time),
                                                  end=True
                                                  )
         for i in range(self.n_workers):
-            fileName = './data/Process_{}_{}.txt'.format(i, formatted_time)
+            fileName = './data/Process_{}_{}_{}.txt'.format(i, formatted_time, rounds)
             with open(fileName, 'w') as file_object:
                 file_object.write(str(self.returns[i]))
+
+        fileName = './data/All Process_{}_{}.txt'.format(message, formatted_time)
+        with open(fileName, 'w') as file_object:
+            file_object.write(str(self.all_returns))
 
     def destroy(self):
         for worker in self.workers:

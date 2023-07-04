@@ -11,7 +11,6 @@ from Agent import *
 import matplotlib.pyplot as plt
 from labml import experiment
 from labml.internal.configs.dynamic_hyperparam import FloatDynamicHyperParam
-from Algorithm import DQN_Super_Trainer
 from datetime import datetime
 import os
 
@@ -305,9 +304,9 @@ def breakout_experiment_lib():
     experiment.create(name="dqn")
 
     configs = {
-        'updates': 1000000,
+        'updates': 100000,
         'epochs': 8,
-        'n_workers': 8,
+        'n_workers': 4,
         'worker_steps': 4,
         'mini_batch_size': 32,
         'update_target_model': 250,
@@ -343,25 +342,43 @@ def RoadRunner_experiment_lib():
     experiment.create(name="dqn")
 
     configs = {
-        'updates': 1000000,
+        'updates': 1000,
         'epochs': 8,
-        'n_workers': 8,
+        'n_workers': 14,
         'worker_steps': 4,
         'mini_batch_size': 32,
         'update_target_model': 250,
         'learning_rate': FloatDynamicHyperParam(1e-4, (0, 1e-3)),
         'args': args,
-        'test': True,
+        'use_super': False,
+        'test': False,
+        'algorithm_name': "DQN"
+    }
+    configs_copy = {
+        'updates': 1000000,
+        'epochs': 8,
+        'n_workers': 14,
+        'worker_steps': 4,
+        'mini_batch_size': 32,
+        'update_target_model': 250,
+        'learning_rate': FloatDynamicHyperParam(1e-4, (0, 1e-3)),
+        'args': args,
+        'use_super': True,
+        'test': False,
+        'algorithm_name': "DQN"
     }
 
     experiment.configs(configs)
 
     m = DQN_Super_Trainer(**configs)
+    n = DQN_Super_Trainer(**configs_copy)
 
     with experiment.start():
         m.run_training_loop()
+        n.run_training_loop()
 
     m.destroy()
+    n.destroy()
 
 
 def Seaquest_experiment_lib():
@@ -382,7 +399,7 @@ def Seaquest_experiment_lib():
     experiment.create(name="dqn")
 
     configs = {
-        'updates': 1000000,
+        'updates': 1000,
         'epochs': 8,
         'n_workers': 8,
         'worker_steps': 4,
