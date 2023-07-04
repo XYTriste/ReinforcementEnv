@@ -342,7 +342,7 @@ def RoadRunner_experiment_lib():
     experiment.create(name="dqn")
 
     configs = {
-        'updates': 1000,
+        'updates': 1000000,
         'epochs': 8,
         'n_workers': 14,
         'worker_steps': 4,
