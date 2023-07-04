@@ -610,7 +610,7 @@ class DQN_Super_Trainer:
             self.exploration_coefficient = Piecewise(
                 [
                     (0, 1.0),
-                    (250, 0.1),
+                    (25000, 0.1),
                     (self.updates / 2, 0.01)
                 ], outside_value=0.01
             )
