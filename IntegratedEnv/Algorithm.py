@@ -789,7 +789,7 @@ class DQN_Super_Trainer:
                                                  end=True
                                                  )
         for i in range(self.n_workers):
-            fileName = './data/Process_{}_{}_{}.txt'.format(i, formatted_time, rounds)
+            fileName = './data/Process_{}_{}_{}.txt'.format(i, formatted_time, message)
             with open(fileName, 'w') as file_object:
                 file_object.write(str(self.returns[i]))
 

@@ -357,33 +357,33 @@ def RoadRunner_experiment_lib():
         'height_start': 0,
         'height_end': 160
     }
-    args.reward_cut = 1
+    args.reward_cut = 0.01
 
     experiment.create(name="dqn")
 
     configs = {
         'updates': 1000000,
         'epochs': 8,
-        'n_workers': 14,
-        'worker_steps': 4,
-        'mini_batch_size': 32,
-        'update_target_model': 250,
-        'learning_rate': FloatDynamicHyperParam(1e-4, (0, 1e-3)),
-        'args': args,
-        'use_super': False,
-        'test': False,
-        'algorithm_name': "DQN"
-    }
-    configs_copy = {
-        'updates': 1000000,
-        'epochs': 8,
-        'n_workers': 14,
+        'n_workers': 8,
         'worker_steps': 4,
         'mini_batch_size': 32,
         'update_target_model': 250,
         'learning_rate': FloatDynamicHyperParam(1e-4, (0, 1e-3)),
         'args': args,
         'use_super': True,
+        'test': False,
+        'algorithm_name': "DQN"
+    }
+    configs_copy = {
+        'updates': 1000000,
+        'epochs': 8,
+        'n_workers': 8,
+        'worker_steps': 4,
+        'mini_batch_size': 32,
+        'update_target_model': 250,
+        'learning_rate': FloatDynamicHyperParam(1e-4, (0, 1e-3)),
+        'args': args,
+        'use_super': False,
         'test': False,
         'algorithm_name': "DQN"
     }
@@ -440,4 +440,4 @@ def Seaquest_experiment_lib():
 
 
 if __name__ == "__main__":
-    breakout_experiment_lib()
+    RoadRunner_experiment_lib()
