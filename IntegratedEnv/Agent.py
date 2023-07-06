@@ -952,9 +952,9 @@ class Agent_Experiment:
                 for episode in range(num_episodes // 10):
                     state, info = env.reset()
                     state = state[35:, :]
-                    # plt.imshow(state)
-                    # plt.axis('off')
-                    # plt.show()
+                    plt.imshow(state)
+                    plt.axis('off')
+                    plt.show()
 
                     episode_reward = 0
                     episode_loss = 0

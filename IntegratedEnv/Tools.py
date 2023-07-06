@@ -20,7 +20,7 @@ class SetupArgs:
         parser.add_argument("--gamma", type=float, default=0.95, metavar='S', help='discounted rate')
         parser.add_argument('--epsilon', type=float, default=1, metavar='S', help='Exploration rate')
         parser.add_argument('--buffer_size', type=int, default=2 ** 16, metavar='S', help='Experience replay buffer size')
-        parser.add_argument('--env_name', type=str, default="ALE/RoadRunner-v5", metavar='S', help="Environment name")
+        parser.add_argument('--env_name', type=str, default="ALE/Bowling-v5", metavar='S', help="Environment name")
 
         return parser.parse_args()
 

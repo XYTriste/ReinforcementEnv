@@ -625,13 +625,19 @@ class DQN_Super_Trainer:
             ], outside_value=1
         )
         self.replay_buffer = ReplayBuffer(2 ** 14, 0.6)
-        self.main_net = Model(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM).to(device)
-        self.target_net = Model(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM).to(device)
+        self.main_net = Model(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM, algorithm_name=algorithm_name).to(device)
+        self.target_net = Model(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM, algorithm_name=algorithm_name).to(device)
 
-        self.main_copy = Model(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM).to(device)
-        self.main_copy.load_state_dict(self.main_net.state_dict())
-        self.super_net = Super_net(self.main_copy)
-        self.super_train_count = 0
+        if self.use_super:
+            self.main_copy = Model(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM, algorithm_name=algorithm_name).to(device)
+            self.main_copy.load_state_dict(self.main_net.state_dict())
+            self.super_net = Super_net(self.main_copy)
+            self.super_train_count = 0
+        else:
+            self.main_copy = None
+            # self.main_copy.load_state_dict(self.main_net.state_dict())
+            self.super_net = None
+            self.super_train_count = 0
 
         if self.test:
             checkpoint = torch.load('./checkpoint/dqn_RoadRunner-v5_23_07_04_13_800000_rounds.pth')
