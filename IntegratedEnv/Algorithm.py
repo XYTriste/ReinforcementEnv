@@ -655,6 +655,13 @@ class DQN_Super_Trainer:
             self.super_train_count = 0
         """--------------------------------Super网络定义结束--------------------------------"""
 
+        """--------------------------------RND网络的定义部分--------------------------------"""
+        if self.use_rnd:
+            self.RND_Network = RNDNetwork_CNN(args)
+        else:
+            self.RND_Network = None
+        """--------------------------------RND网络的定义结束--------------------------------"""
+
         if self.test:
             checkpoint = torch.load(self.test_model)
             self.main_net.load_state_dict(checkpoint['main_net_state_dict'])
