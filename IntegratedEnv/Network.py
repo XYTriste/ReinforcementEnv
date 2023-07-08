@@ -164,11 +164,14 @@ class RNDNetwork_CNN(nn.Module):
         self.HIDDEN_DIM = args.HIDDEN_DIM  # 隐藏层的大小
         self.OUTPUT_DIM = args.OUTPUT_DIM  # 输出层的大小
         self.HIDDEN_DIM_NUM = args.HIDDEN_DIM_NUM
-        self.LR = 2.5e-4
+        self.LR = 0.001
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.predictor = CNN(self.INPUT_DIM, self.OUTPUT_DIM).to(self.device)
         self.target = CNN(self.INPUT_DIM, self.OUTPUT_DIM).to(self.device)
+
+        for param in self.target.parameters():
+            param.requires_grad = False
 
         self.optimizer = torch.optim.Adam(self.predictor.parameters(), lr=self.LR)
         self.loss_func = nn.HuberLoss()

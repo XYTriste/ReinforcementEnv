@@ -111,9 +111,9 @@ class DQN:
         self.target_net.load_state_dict(self.main_net.state_dict())
         self.target_net.eval()
 
-        self.BATCH_SIZE = 128
+        self.BATCH_SIZE = 64
         self.LR = 1e-3
-        self.EPSILON = 0.1
+        self.EPSILON = 1
         self.GAMMA = 0.99
         self.TARGET_REPLACE_ITER = 100
         self.MEMORY_CAPACITY = 10000
@@ -263,7 +263,7 @@ if __name__ == '__main__':
     env = gym.make("MountainCar-v0", render_mode="rgb_array")
     agent = Agent(env.observation_space.shape[0], env.action_space.n)
     DQNAgent = DQN(agent)
-    RNDNetWork = RNDNet(2, 2)
+    RNDNetWork = RNDNet(2, 1)
     recorder = Recorder()
     painter = Painter()
 
@@ -274,11 +274,11 @@ if __name__ == '__main__':
     test_mean_reward = []
     learn_step = 0  # DQN经验回放频率计数
 
-    reward_weight = 0.6
+    reward_weight = 0.01
 
-    random.seed(21)
-    np.random.seed(21)
-    torch.manual_seed(21)
+    random.seed(23)
+    np.random.seed(23)
+    torch.manual_seed(23)
 
     for i in range(10):
         with tqdm(total=int(rounds / 10), desc=f'Iteration {i}') as pbar:
@@ -299,7 +299,7 @@ if __name__ == '__main__':
 
                     time_step += 1
 
-                    s_prime, external_reward, done, _, _, = env.step(action)
+                    s_prime, extrinsic_reward, done, _, _, = env.step(action)
 
                     # external_reward = (s_prime[0] - state[0]) + (s_prime[1] ** 2 - state[1] ** 2)
 
@@ -311,7 +311,7 @@ if __name__ == '__main__':
                     #     external_reward = 0
 
                     # external_reward = 100 * (0.5 - abs(state[0])) - 10 * abs(state[1])
-                    # predict, target = RNDNetWork(torch.from_numpy(state))
+                    predict, target = RNDNetWork(torch.from_numpy(state))
                     # # predict_error = np.linalg.norm(target - predict)
                     # predict_error = RNDNetWork.update_parameters(predict, target)
                     # normalize_val = RNDNetWork.normalize_error(predict_error.item())
@@ -319,21 +319,25 @@ if __name__ == '__main__':
                     #
                     # r = external_reward + normalize_val
                     # r = (-external_reward) * predict_error.item()
-                    # r = (1 - reward_weight) * (external_reward if not done else 0) + reward_weight * normalize_val
-                    r = external_reward if not done else 0
+                    if done:
+                        special_reward = 0
+                    else:
+                        special_reward = 0
+                    r = extrinsic_reward + reward_weight * (target - predict).item() + special_reward
+                    # r = external_reward if not done else 0
                     DQNAgent.store_transition(state, action, r, s_prime, done)
 
-                    episode_reward += external_reward
-                    episode_external_reward += external_reward
-                    # episode_intrinsic_reward += normalize_val
+                    episode_reward += extrinsic_reward
+                    episode_external_reward += extrinsic_reward
+                    episode_intrinsic_reward += reward_weight * (target - predict).item()
                     state = s_prime
                     learn_step += 1
                     if DQNAgent.memory_counter > DQNAgent.MEMORY_CAPACITY and learn_step % 5 == 0:
                         episode_learn_count += 1
                         episode_DQN_loss += DQNAgent.learn()
 
-                    if DQNAgent.EPSILON > 0.1:
-                        DQNAgent.EPSILON *= 0.99
+                    if DQNAgent.EPSILON > 0.01:
+                        DQNAgent.EPSILON *= 0.9999
                 recorder.episodes.append(i)
                 recorder.time_steps.append(time_step)
                 recorder.episode_rewards.append(episode_reward)
@@ -342,13 +346,13 @@ if __name__ == '__main__':
                 # painter.add_data(time_step, episode_reward)
                 # print('Episode: ', i,'| Episode_reward: ', round(episode_reward, 2))
                 print(
-                    "Episode: {}, Episode reward:{}, external reward:{},   intrinsic reward:{}.   episode DQN "
-                    "mean loss:{}".format(
+                    "Episode: {}, Episode reward:{}, extrinsic reward:{:.3f},   intrinsic reward:{:.3f}.   episode DQN "
+                    "mean loss:{:.4f}, epsilon:{:.3f}".format(
                         i,
                         episode_reward,
                         episode_external_reward,
                         episode_intrinsic_reward,
-                        episode_DQN_loss / (episode_learn_count if episode_learn_count != 0 else 1)))
+                        episode_DQN_loss / (episode_learn_count if episode_learn_count != 0 else 1), DQNAgent.EPSILON))
                 DQNAgent.plot_reward(recorder.episode_rewards, 1)
                 if (episode + 1) % 10 == 0:
                     pbar.set_postfix(
