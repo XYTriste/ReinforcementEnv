@@ -32,7 +32,6 @@ class Game:
         for i in range(4):
             s_prime, r, done, info, _ = self.env.step(action)
             s_prime = s_prime[self.width_start: self.width_end, self.height_start: self.height_end]
-            r *= self.reward_cut
             # plt.imshow(s_prime)
             # plt.axis('off')
             # plt.show()
@@ -45,6 +44,7 @@ class Game:
                 done = True
                 break
 
+        reward *= self.reward_cut
         self.rewards.append(reward)
 
         if done:

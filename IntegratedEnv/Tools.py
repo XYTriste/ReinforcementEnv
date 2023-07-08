@@ -20,7 +20,7 @@ class SetupArgs:
         parser.add_argument("--gamma", type=float, default=0.95, metavar='S', help='discounted rate')
         parser.add_argument('--epsilon', type=float, default=1, metavar='S', help='Exploration rate')
         parser.add_argument('--buffer_size', type=int, default=2 ** 16, metavar='S', help='Experience replay buffer size')
-        parser.add_argument('--env_name', type=str, default="ALE/RoadRunner-v5", metavar='S', help="Environment name")
+        parser.add_argument('--env_name', type=str, default="ALE/Breakout-v5", metavar='S', help="Environment name")
 
         return parser.parse_args()
 
@@ -62,15 +62,15 @@ class Painter:
             plt.pause(0.001)
 
     def plot_average_reward_by_list(self, list, window, title, curve_label, colorIndex, end=False, xlabel="steps",
-                            ylabel="Average return", saveName="default_name"):
+                            ylabel="Average return", savePath="./train_pic/default_name.png"):
         plt.ion()
         plt.figure(window)
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
         plt.title(title)
         if end:
-            plt.savefig('./train_pic/' + saveName + '.png')
-            plt.show()
+            plt.savefig(savePath)
+            # plt.show()
             return
         # for reward in list:
         #     if len(self.return_list) == 0:

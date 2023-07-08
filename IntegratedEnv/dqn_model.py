@@ -16,7 +16,7 @@ from torch import nn
 from labml_helpers.module import Module
 
 
-class Model(Module):
+class Model(nn.Module):
     """
     ## Dueling Network ⚔️ Model for $Q$ Values
 
@@ -47,8 +47,11 @@ class Model(Module):
     We share the initial layers of the $V$ and $A$ networks.
     """
 
-    def __init__(self, INPUT_DIM=4, HIDDEN_DIM=5, OUTPUT_DIM=4):
-        super().__init__()
+    def __init__(self, INPUT_DIM=4, HIDDEN_DIM=5, OUTPUT_DIM=4, algorithm_name="DQN"):
+        super(Model, self).__init__()
+
+        self.algorithm_name = algorithm_name
+
         self.conv = nn.Sequential(
             # The first convolution layer takes a
             # $84\times84$ frame and produces a $20\times20$ frame
@@ -72,12 +75,13 @@ class Model(Module):
         self.lin = nn.Linear(in_features=7 * 7 * 64, out_features=512)
         self.activation = nn.ReLU()
 
-        # This head gives the state value $V$
-        self.state_value = nn.Sequential(
-            nn.Linear(in_features=512, out_features=256),
-            nn.ReLU(),
-            nn.Linear(in_features=256, out_features=1),
-        )
+        if self.algorithm_name == "Dueling DQN":
+            # This head gives the state value $V$
+            self.state_value = nn.Sequential(
+                nn.Linear(in_features=512, out_features=256),
+                nn.ReLU(),
+                nn.Linear(in_features=256, out_features=1),
+            )
         # This head gives the action value $A$
         self.action_value = nn.Sequential(
             nn.Linear(in_features=512, out_features=256),
@@ -96,12 +100,16 @@ class Model(Module):
 
         # $A$
         action_value = self.action_value(h)
-        # $V$
-        state_value = self.state_value(h)
+        if self.algorithm_name == "Dueling DQN":
+            # $V$
+            state_value = self.state_value(h)
 
-        # $A(s, a) - \frac{1}{|\mathcal{A}|} \sum_{a' \in \mathcal{A}} A(s, a')$
-        action_score_centered = action_value - action_value.mean(dim=-1, keepdim=True)
-        # $Q(s, a) =V(s) + \Big(A(s, a) - \frac{1}{|\mathcal{A}|} \sum_{a' \in \mathcal{A}} A(s, a')\Big)$
-        q = state_value + action_score_centered
-
+            # $A(s, a) - \frac{1}{|\mathcal{A}|} \sum_{a' \in \mathcal{A}} A(s, a')$
+            action_score_centered = action_value - action_value.mean(dim=-1, keepdim=True)
+            # $Q(s, a) =V(s) + \Big(A(s, a) - \frac{1}{|\mathcal{A}|} \sum_{a' \in \mathcal{A}} A(s, a')\Big)$
+            q = state_value + action_score_centered
+        elif self.algorithm_name == "DQN":
+            q = action_value
+        else:
+            raise Exception("Model algorithm name is wrong. Please use Dueling DQN or DQN")
         return q

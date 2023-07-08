@@ -362,21 +362,21 @@ class SuperBuffer:
         self.buffer = deque(maxlen=capacity)
 
     def add(self, state, action, target):
-        target = target.detach().cpu()  # target是网络输出，需要额外脱离gpu以及计算图
-        state = state.cpu()  # 这里的state是tensor
-        self.buffer.append((np.array(state), action, np.array(target)))
+        target_q = target.detach().cpu()  # target是网络输出，需要额外脱离gpu以及计算图
+        current_state = state.cpu()  # 这里的state是tensor
+        self.buffer.append((current_state, action, target_q))
 
     def sample(self, batch_size):
         # transitions = random.sample(self.buffer, batch_size)
         temp = list(self.buffer)
         transitions = temp[-batch_size:]
 
-        state, action, target = zip(*transitions)
-        return state, action, np.array(target)
+        state, action, target = transitions[0]
+        return state, action, target
 
     def change(self, fact):
         # 动态调整buff大小
-        temp = self.buffer
+        temp = self.bufferModule
         self.buffer = deque(maxlen=self.capacity * fact)
         while len(temp) > 0:
             self.buffer.append(temp.pop())
@@ -403,13 +403,13 @@ class Super_net:
         if len(self.buffer.buffer) < self.batch_size:
             return torch.tensor(0, dtype=torch.float)
         state, action, target = self.buffer.sample(self.batch_size)
-        state = state[0][0]
 
-        states = torch.tensor(state, dtype=torch.float, device=self.device).unsqueeze(0)
-        actions = torch.tensor(action, dtype=torch.long, device=self.device).view(-1, 1)
-        target = torch.tensor(target, dtype=torch.float, device=self.device).view(-1, 1).squeeze(0)
+        states = state.unsqueeze(0).to(self.device)
+        actions = torch.tensor(action, dtype=torch.long, device=self.device)
+        target = target.to(self.device)
+        # target = torch.tensor(target, dtype=torch.float, device=self.device).view(-1, 1).squeeze(0)
 
-        super_value = self.model(states).squeeze(0)[actions].squeeze(0)
+        super_value = self.model(states).squeeze(0)[actions]
         # super_value.gather(1, actions)
 
         loss = self.loss_func(super_value, target)
@@ -587,12 +587,29 @@ class DQN_Super_Trainer:
                  mini_batch_size: int,
                  update_target_model: int,
                  learning_rate: FloatDynamicHyperParam,
-                 args: SetupArgs):
+                 args: SetupArgs,
+                 use_super: bool,
+                 rnd: dict,
+                 test: dict,
+                 algorithm_name="DQN"):
         self.args = args
         self.INPUT_DIM = args.INPUT_DIM  # 输入层的大小
         self.HIDDEN_DIM = args.HIDDEN_DIM  # 隐藏层的大小
         self.OUTPUT_DIM = args.OUTPUT_DIM  # 输出层的大小
         self.HIDDEN_DIM_NUM = args.HIDDEN_DIM_NUM  # 隐藏层的数量
+
+        self.test = test['use_test']    # 是否加载模型并进行测试
+        self.test_model = test['test_model']
+
+        self.use_super = use_super
+
+        """----------RND网络参数定义部分----------"""
+        self.use_rnd = rnd['use_rnd']
+        self.rnd_weight = rnd['rnd_weight']
+        self.rnd_weight_decay = rnd['rnd_weight_decay']
+        """----------RND网络参数定义结束----------"""
+
+        self.algorithm_name = algorithm_name
 
         self.n_workers = n_workers
         self.worker_steps = worker_steps
@@ -601,13 +618,17 @@ class DQN_Super_Trainer:
         self.mini_batch_size = mini_batch_size
         self.update_target_model_frequency = update_target_model
         self.learning_rate = learning_rate
-        self.exploration_coefficient = Piecewise(
-            [
-                (0, 1.0),
-                (25000, 0.1),
-                (self.updates / 2, 0.01)
-            ], outside_value=0.01
-        )
+        if not self.test:
+            self.exploration_coefficient = Piecewise(
+                [
+                    (0, 1.0),
+                    (25000, 0.1),
+                    (self.updates / 2, 0.01)
+                ], outside_value=0.01
+            )
+        else:
+            self.n_workers = 1
+            self.exploration_coefficient = lambda x: 0.00001
         self.prioritized_replay_beta = Piecewise(
             [
                 (0, 0.4),
@@ -615,8 +636,39 @@ class DQN_Super_Trainer:
             ], outside_value=1
         )
         self.replay_buffer = ReplayBuffer(2 ** 14, 0.6)
-        self.main_net = Model(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM).to(device)
-        self.target_net = Model(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM).to(device)
+        self.main_net = Model(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM, algorithm_name=algorithm_name).to(
+            device)
+        self.target_net = Model(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM, algorithm_name=algorithm_name).to(
+            device)
+
+        """--------------------------------Super网络的定义部分--------------------------------"""
+        if self.use_super:
+            self.main_copy = Model(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM, algorithm_name=algorithm_name).to(
+                device)
+            self.main_copy.load_state_dict(self.main_net.state_dict())
+            self.super_net = Super_net(self.main_copy)
+            self.super_train_count = 0
+        else:
+            self.main_copy = None
+            # self.main_copy.load_state_dict(self.main_net.state_dict())
+            self.super_net = None
+            self.super_train_count = 0
+        """--------------------------------Super网络定义结束--------------------------------"""
+
+
+
+        """--------------------------------RND网络的定义部分--------------------------------"""
+        if self.use_rnd:
+            self.RND_Network = RNDNetwork_CNN(args)
+        else:
+            self.RND_Network = None
+        """--------------------------------RND网络的定义结束--------------------------------"""
+
+        if self.test:
+            checkpoint = torch.load(self.test_model)
+            self.main_net.load_state_dict(checkpoint['main_net_state_dict'])
+            self.target_net.load_state_dict(checkpoint['target_net_state_dict'])
+
         self.workers = [Worker(args, 47 + i, i) for i in range(self.n_workers)]
         self.obs = np.zeros((self.n_workers, 4, 84, 84), dtype=np.uint8)
 
@@ -628,10 +680,12 @@ class DQN_Super_Trainer:
             self.obs[i] = recv
 
         self.loss_func = QFuncLoss(0.99)  # discount factor = 0.99
+        self.l1loss_func = nn.L1Loss()
         self.optimizer = torch.optim.Adam(self.main_net.parameters(), lr=2.5e-4)
 
         self.painter = Painter()
         self.returns = []
+        self.all_returns = []  # 把所有线程中得到的结果进行保存
         self.watch_processing = 3  # 指定绘制第几个线程的输出结果
         for i in range(self.n_workers):
             self.returns.append([])
@@ -643,10 +697,10 @@ class DQN_Super_Trainer:
         is_choose_rand = torch.rand(greedy_action.shape, device=q_value.device) < exploration_coefficient
         return torch.where(is_choose_rand, random_action, greedy_action).cpu().numpy()
 
-    @torch.no_grad()
     def sample(self, exploration_coefficient: float):
         for t in range(self.worker_steps):
-            q_value = self.main_net(obs_to_torch(self.obs))
+            state = obs_to_torch(self.obs)
+            q_value = self.main_net(state)
             actions = self.select_action(q_value, exploration_coefficient)
 
             for w, worker in enumerate(self.workers):
@@ -654,21 +708,45 @@ class DQN_Super_Trainer:
 
             for w, worker in enumerate(self.workers):
                 s_prime, reward, done, info, _ = worker.child.recv()
-                self.replay_buffer.add(self.obs[w], actions[w], reward, s_prime, done)
+                if self.use_super:
+                    intrinsic_reward = self.get_super_reward(state[w], actions[w])
+                    update_reward = reward + 0.8 * intrinsic_reward
+                else:
+                    update_reward = reward
+                if self.use_rnd:
+                    predict, target = self.RND_Network(state[w])
+                    i_reward = self.RND_Network.get_intrinsic_reward(predict, target).item()
+                    update_reward = (1 - self.rnd_weight) * update_reward + self.rnd_weight * i_reward
+                self.replay_buffer.add(self.obs[w], actions[w], update_reward, s_prime, done)
 
                 if info:
                     tracker.add('reward', info['reward'])
                     tracker.add('length', info['length'])
+                    self.all_returns.append(info['reward'])
                     self.returns[w].append(info['reward'])
-                    if w == self.watch_processing and len(self.returns[w]) % 50 == 0:
-                        self.painter.plot_average_reward_by_list(self.returns[w][-50:],
-                                                                 window=1,
-                                                                 title="{} on {}".format("DQN", self.args.env_name),
-                                                                 curve_label="{}".format("DQN"),
-                                                                 colorIndex=self.watch_processing
-                                                                 )
+                    # if w == self.watch_processing and len(self.returns[w]) % 50 == 0:
+                    # self.painter.plot_average_reward_by_list(self.returns[w][-50:], window=1, title="{} on {
+                    # }".format("DQN", self.args.env_name), curve_label="{}".format("DQN" + " Super" if
+                    # self.use_super else ""), colorIndex=self.watch_processing )
 
                 self.obs[w] = s_prime
+
+    def get_super_reward(self, state, action):
+        q_values = self.main_net(state).squeeze(0)
+        q_value = q_values[action]
+        super_value = self.super_net(state).squeeze(0)
+        super_value = super_value[action]
+        reward_finally = 0
+        if super_value < q_value:
+            self.super_train_count += 1
+            self.super_net.buffer.add(state, action, q_value)
+            self.super_net.learn()
+            reward_loss = self.l1loss_func(super_value, q_value).item()
+            reward_distance = self.super_net(state).squeeze(0)[action].item() - super_value.item()
+
+            reward_finally = min(reward_loss, reward_distance)
+
+        return reward_finally
 
     def learn(self, beta: float):
         for _ in range(self.train_epochs):
@@ -700,8 +778,8 @@ class DQN_Super_Trainer:
             return loss.item()
 
     def run_training_loop(self):
-        tracker.set_queue('reward', 100, True)
-        tracker.set_queue('length', 100, True)
+        tracker.set_queue('reward', 100, True)  # 跟踪显示100回合的平均奖励
+        tracker.set_queue('length', 100, True)  # 跟踪显示100回合的平均回合长度
 
         self.target_net.load_state_dict(self.main_net.state_dict())
         for update in monit.loop(self.updates):
@@ -721,28 +799,39 @@ class DQN_Super_Trainer:
             tracker.save()
             if (update + 1) % 1000 == 0:
                 logger.log()
-            if (update + 1) % 100000 == 0:
-                self.save_info(message="{}_rounds".format(update + 1))
-        self.save_info(message="final")
+            if (update + 1) % 100000 == 0 and not self.test:
+                message = "{}_rounds".format(update + 1) + "_super" if self.use_super else ""
+                self.save_info(message=message, rounds=update)
+            if (update + 1) % 600000 == 0:
+                break
+        if not self.test:
+            message = "final" + "_super" if self.use_super else ""
+            self.save_info(message=message, rounds=self.updates)
 
-    def save_info(self, message=""):
+    def save_info(self, message="", rounds=0):
         formatted_time = datetime.now().strftime("%y_%m_%d_%H")
-        current_path = os.getcwd()
-        model_name = current_path + "/checkpoint/dqn_{}_{}_{}.pth".format(self.args.env_name.split("/")[-1], formatted_time, message)
-        torch.save({"main_net_state_dict": m.main_net.state_dict(),
-                    "target_net_state_dict": m.target_net.state_dict()}, model_name)
+        name = self.args.env_name.split("/")[-1]
+        torch.save({"main_net_state_dict": self.main_net.state_dict(),
+                    "target_net_state_dict": self.target_net.state_dict()},
+                   "./checkpoint/dqn_{}_{}_{}.pth".format(name, formatted_time, message))
         self.painter.plot_average_reward_by_list(None,
                                                  window=1,
-                                                 title="{} on {}".format("DQN", self.args.env_name),
-                                                 curve_label="{}".format("DQN"),
+                                                 title="{} on {}".format("DQN" + " Super" if self.use_super else "",
+                                                                         self.args.env_name),
+                                                 curve_label="{}".format("DQN" + " Super" if self.use_super else ""),
                                                  colorIndex=self.watch_processing,
-                                                 saveName=model_name,
+                                                 savePath="./train_pic/dqn_{}_{}_{}.png".format(name, message,
+                                                                                                formatted_time),
                                                  end=True
                                                  )
         for i in range(self.n_workers):
-            with open('./data/Process_{}_{}.txt'.format(i, datetime.datetime.now().strftime("%y_%m_%d_%H")),
-                      'w') as file_object:
+            fileName = './data/Process_{}_{}_{}.txt'.format(i, formatted_time, message)
+            with open(fileName, 'w') as file_object:
                 file_object.write(str(self.returns[i]))
+
+        fileName = './data/All Process_{}_{}.txt'.format(message, formatted_time)
+        with open(fileName, 'w') as file_object:
+            file_object.write(str(self.all_returns))
 
     def destroy(self):
         for worker in self.workers:
