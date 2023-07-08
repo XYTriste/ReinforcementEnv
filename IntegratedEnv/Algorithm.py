@@ -589,15 +589,26 @@ class DQN_Super_Trainer:
                  learning_rate: FloatDynamicHyperParam,
                  args: SetupArgs,
                  use_super: bool,
-                 test: bool,
+                 rnd: dict,
+                 test: dict,
                  algorithm_name="DQN"):
         self.args = args
         self.INPUT_DIM = args.INPUT_DIM  # 输入层的大小
         self.HIDDEN_DIM = args.HIDDEN_DIM  # 隐藏层的大小
         self.OUTPUT_DIM = args.OUTPUT_DIM  # 输出层的大小
         self.HIDDEN_DIM_NUM = args.HIDDEN_DIM_NUM  # 隐藏层的数量
-        self.test = test
+
+        self.test = test['use_test']    # 是否加载模型并进行测试
+        self.test_model = test['test_model']
+
         self.use_super = use_super
+
+        """----------RND网络参数定义部分----------"""
+        self.use_rnd = rnd['use_rnd']
+        self.rnd_weight = rnd['rnd_weight']
+        self.rnd_weight_decay = rnd['rnd_weight_decay']
+        """----------RND网络参数定义结束----------"""
+
         self.algorithm_name = algorithm_name
 
         self.n_workers = n_workers
@@ -625,11 +636,15 @@ class DQN_Super_Trainer:
             ], outside_value=1
         )
         self.replay_buffer = ReplayBuffer(2 ** 14, 0.6)
-        self.main_net = Model(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM, algorithm_name=algorithm_name).to(device)
-        self.target_net = Model(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM, algorithm_name=algorithm_name).to(device)
+        self.main_net = Model(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM, algorithm_name=algorithm_name).to(
+            device)
+        self.target_net = Model(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM, algorithm_name=algorithm_name).to(
+            device)
 
+        """--------------------------------Super网络的定义部分--------------------------------"""
         if self.use_super:
-            self.main_copy = Model(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM, algorithm_name=algorithm_name).to(device)
+            self.main_copy = Model(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM, algorithm_name=algorithm_name).to(
+                device)
             self.main_copy.load_state_dict(self.main_net.state_dict())
             self.super_net = Super_net(self.main_copy)
             self.super_train_count = 0
@@ -638,9 +653,19 @@ class DQN_Super_Trainer:
             # self.main_copy.load_state_dict(self.main_net.state_dict())
             self.super_net = None
             self.super_train_count = 0
+        """--------------------------------Super网络定义结束--------------------------------"""
+
+
+
+        """--------------------------------RND网络的定义部分--------------------------------"""
+        if self.use_rnd:
+            self.RND_Network = RNDNetwork_CNN(args)
+        else:
+            self.RND_Network = None
+        """--------------------------------RND网络的定义结束--------------------------------"""
 
         if self.test:
-            checkpoint = torch.load('./checkpoint/dqn_RoadRunner-v5_23_07_04_13_800000_rounds.pth')
+            checkpoint = torch.load(args.test_model)
             self.main_net.load_state_dict(checkpoint['main_net_state_dict'])
             self.target_net.load_state_dict(checkpoint['target_net_state_dict'])
 
@@ -688,6 +713,10 @@ class DQN_Super_Trainer:
                     update_reward = reward + 0.8 * intrinsic_reward
                 else:
                     update_reward = reward
+                if self.use_rnd:
+                    predict, target = self.RND_Network(state[w])
+                    i_reward = self.RND_Network.get_intrinsic_reward(predict, target).item()
+                    update_reward = (1 - self.rnd_weight) * update_reward + self.rnd_weight * i_reward
                 self.replay_buffer.add(self.obs[w], actions[w], update_reward, s_prime, done)
 
                 if info:
@@ -787,7 +816,8 @@ class DQN_Super_Trainer:
                    "./checkpoint/dqn_{}_{}_{}.pth".format(name, formatted_time, message))
         self.painter.plot_average_reward_by_list(None,
                                                  window=1,
-                                                 title="{} on {}".format("DQN" + " Super" if self.use_super else "", self.args.env_name),
+                                                 title="{} on {}".format("DQN" + " Super" if self.use_super else "",
+                                                                         self.args.env_name),
                                                  curve_label="{}".format("DQN" + " Super" if self.use_super else ""),
                                                  colorIndex=self.watch_processing,
                                                  savePath="./train_pic/dqn_{}_{}_{}.png".format(name, message,
