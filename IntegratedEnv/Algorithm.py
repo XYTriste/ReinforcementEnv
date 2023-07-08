@@ -716,7 +716,7 @@ class DQN_Super_Trainer:
                 if self.use_rnd:
                     predict, target = self.RND_Network(state[w])
                     i_reward = self.RND_Network.get_intrinsic_reward(predict, target).item()
-                    update_reward = (1 - self.rnd_weight) * update_reward + self.rnd_weight * i_reward
+                    update_reward = update_reward + self.rnd_weight * i_reward
                 self.replay_buffer.add(self.obs[w], actions[w], update_reward, s_prime, done)
 
                 if info:

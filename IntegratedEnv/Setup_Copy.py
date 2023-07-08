@@ -611,11 +611,11 @@ def Montezuma_revenge_experiment_lib():
 
     args.INPUT_DIM = 4
     args.HIDDEN_DIM = 128
-    args.OUTPUT_DIM = 6
+    args.OUTPUT_DIM = 18
     args.HIDDEN_DIM_NUM = 5
     args.obs_cut = {
-        'width_start': 100,
-        'width_end': 175,
+        'width_start': 0,
+        'width_end': 210,
         'height_start': 0,
         'height_end': 160
     }
@@ -635,15 +635,15 @@ def Montezuma_revenge_experiment_lib():
         'args': args,
         'use_super': False,
         'rnd': {
-            'use_rnd': True,
-            'rnd_weight': 0.4,
+            'use_rnd': False,
+            'rnd_weight': 0.01,
             'rnd_weight_decay': 1,
         },
         'test': {
-            'use_test': True,
+            'use_test': False,
             'test_model': './checkpoint/dqn_MontezumaRevenge-v5_23_07_08_13_.pth',
         },
-        'algorithm_name': "DQN"
+        'algorithm_name': "Dueling DQN"
     }
 
     experiment.configs(configs)
