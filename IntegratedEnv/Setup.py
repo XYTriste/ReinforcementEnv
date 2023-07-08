@@ -622,7 +622,7 @@ def Montezuma_revenge_experiment_lib():
         'use_super': False,
         'rnd': {
             'use_rnd': True,
-            'rnd_weight': 0.4,
+            'rnd_weight': 0.01,
             'rnd_weight_decay': 1,
         },
         'test': {
