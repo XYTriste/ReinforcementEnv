@@ -18,6 +18,7 @@ class Game:
         self.obs_2_max = np.zeros((2, 84, 84))
         self.returns = []
         self.rewards = []
+        self.frames = 0
         self.lives = 5  # Atari游戏中的生命值参数，该参数需要根据环境进行调整,但是reset方法中会动态调整。
 
         self.width_start = args.obs_cut['width_start']
@@ -46,12 +47,14 @@ class Game:
 
         reward *= self.reward_cut
         self.rewards.append(reward)
+        self.frames += 1
 
         if done:
             self.returns.append(sum(self.rewards))
             episode_info = {
                 "reward": sum(self.rewards),
-                "length": len(self.rewards)
+                "length": len(self.rewards),
+                'frames': self.frames
             }
             self.reset()
         else:
@@ -59,7 +62,6 @@ class Game:
             obs = self.obs_2_max.max(axis=0)
             self.obs_4 = np.roll(self.obs_4, shift=-1, axis=0)
             self.obs_4[-1] = obs
-
         return self.obs_4, reward, done, episode_info, {}
 
     def reset(self):

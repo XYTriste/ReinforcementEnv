@@ -178,6 +178,9 @@ class RNDNetwork_CNN(nn.Module):
         self.running_mean_deviation = 0.0
         self.data_count = 0.0
 
+        self.mean = torch.tensor(0.0)
+        self.var = torch.tensor(1.0)
+
     def forward(self, state):
         state = torch.unsqueeze(torch.FloatTensor(state), 0)
         predict = self.predictor(state)
@@ -186,24 +189,30 @@ class RNDNetwork_CNN(nn.Module):
 
     def update_parameters(self, predict, target):
         loss = self.loss_func(predict, target)
+        normalized_error = (loss - self.mean) / torch.sqrt(self.var)
+        self.mean = 0.99 * self.mean + 0.01 * loss
+        self.var = 0.99 * self.var + 0.01 * (loss ** 2)
         self.optimizer.zero_grad()
         loss.backward()
         for param in self.predictor.parameters():
             param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
-        return loss
+        return normalized_error.item()
 
     def get_intrinsic_reward(self, predict, target, CALC=True):
         """
         CALC参数指定是否将误差用于计算运行时标准差和均差
         """
         intrinsic_reward = self.update_parameters(predict, target)
-        if CALC:
-            self.get_runtime_std_mean_deviation(intrinsic_reward.item())
 
         return intrinsic_reward
 
     def get_runtime_std_mean_deviation(self, data):  # 计算运行时的标准差与均差
+        """
+        该函数已废弃不用
+        :param data:
+        :return:
+        """
         self.data_count += 1
         delta = data - np.mean(self.sum_error)
         self.running_std_error += ((delta ** 2 - self.running_std_error) / self.data_count)
