@@ -72,6 +72,7 @@ class Game:
             self.obs_4[i] = obs
         self.rewards = []
         self.lives = self.env.unwrapped.ale.lives()
+        self.frames = 0
 
         return self.obs_4, info
 

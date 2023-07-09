@@ -74,10 +74,6 @@ class PPOTrainer:
 
         self.algorithm_name = "PPO"
 
-        self.test = test['use_test']    # 是否加载模型并进行测试
-        self.test_model = test['test_model']
-
-
         """----------RND网络参数定义部分----------"""
         self.use_rnd = args.rnd['use_rnd']
         self.rnd_weight = args.rnd['rnd_weight']
@@ -90,6 +86,9 @@ class PPOTrainer:
         else:
             self.RND_Network = None
         """--------------------------------RND网络的定义结束--------------------------------"""
+
+        self.test = test['use_test']    # 是否加载模型并进行测试
+        self.test_model = test['test_model']
 
         self.updates = updates
 
@@ -133,6 +132,10 @@ class PPOTrainer:
         self.ppo_loss = ClippedPPOLoss()
 
         self.value_loss = ClippedValueFunctionLoss()
+
+        if test:
+            checkpoint = torch.load(self.test_model)
+            self.model.load_state_dict(checkpoint)
 
         self.painter = Painter()
         self.returns = []

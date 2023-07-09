@@ -10,9 +10,10 @@ from Algorithm import *
 from Agent import *
 import matplotlib.pyplot as plt
 from labml import experiment
-from labml.internal.configs.dynamic_hyperparam import FloatDynamicHyperParam
+from labml.internal.configs.dynamic_hyperparam import FloatDynamicHyperParam, IntDynamicHyperParam
 from datetime import datetime
 import os
+from PPO_algorithm import *
 
 
 def mountaincar_DQN():
@@ -300,24 +301,17 @@ def breakout_experiment_lib():
         'height_start': 0,
         'height_end': 160
     }
+    args.rnd = {
+        'use_rnd': True,
+        'rnd_weight': 0.01,
+        'rnd_weight_decay': 1,
+    }
+    args.env_name = "ALE/Breakout-v5"
     args.reward_cut = 1
 
-    experiment.create(name="dqn")
+    experiment.create(name="ppo")
 
-    configs = {
-        'updates': 1000000,
-        'epochs': 8,
-        'n_workers': 8,
-        'worker_steps': 4,
-        'mini_batch_size': 32,
-        'update_target_model': 250,
-        'learning_rate': FloatDynamicHyperParam(1e-4, (0, 1e-3)),
-        'args': args,
-        'use_super': True,
-        'test': False,
-        'algorithm_name': "DQN"
-    }
-    configs_copy = {
+    DQN_configs = {
         'updates': 1000000,
         'epochs': 8,
         'n_workers': 8,
@@ -327,21 +321,53 @@ def breakout_experiment_lib():
         'learning_rate': FloatDynamicHyperParam(1e-4, (0, 1e-3)),
         'args': args,
         'use_super': False,
-        'test': False,
-        'algorithm_name': "DQN"
+        'rnd': {
+            'use_rnd': True,
+            'rnd_weight': 0.01,
+            'rnd_weight_decay': 1,
+        },
+        'test': {
+            'use_test': False,
+            'test_model': None,
+        },
+        'algorithm_name': "Dueling DQN"
     }
 
-    experiment.configs(configs)
+    PPO_configs = {
+        'updates': 10000,
 
-    m = DQN_Super_Trainer(**configs)
-    n = DQN_Super_Trainer(**configs_copy)
+        'epochs': IntDynamicHyperParam(8),
+
+        'n_workers': 8,
+
+        'worker_steps': 128,
+
+        'batches': 4,
+
+        'value_loss_coef': FloatDynamicHyperParam(0.5),
+
+        'entropy_bonus_coef': FloatDynamicHyperParam(0.01),
+
+        'clip_range': FloatDynamicHyperParam(0.1),
+
+        'learning_rate': FloatDynamicHyperParam(1e-3, (0, 1e-3)),
+
+        'args': args,
+
+        'test': {
+            'use_test': True,
+            'test_model': './checkpoint/PPO_Breakout-v5_23_07_09_12_1000r-1023642-_RND.pth',
+        },
+    }
+
+    experiment.configs(PPO_configs)
+
+    m = PPOTrainer(**PPO_configs)
 
     with experiment.start():
         m.run_training_loop()
-        n.run_training_loop()
 
     m.destroy()
-    n.destroy()
 
 
 def RoadRunner_experiment_lib():
@@ -657,4 +683,4 @@ def Montezuma_revenge_experiment_lib():
 
 
 if __name__ == "__main__":
-    Montezuma_revenge_experiment_lib()
+    breakout_experiment_lib()

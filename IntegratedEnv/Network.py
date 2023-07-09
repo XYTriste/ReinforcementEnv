@@ -3,6 +3,8 @@
 # Author: Yu Xia
 # @File: Network.py
 # @software: PyCharm
+import math
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -181,8 +183,8 @@ class RNDNetwork_CNN(nn.Module):
         self.running_mean_deviation = 0.0
         self.data_count = 0.0
 
-        self.mean = torch.tensor(0.0)
-        self.var = torch.tensor(1.0)
+        self.mean = 0.0
+        self.var = 1.0
 
     def forward(self, state):
         state = torch.unsqueeze(torch.FloatTensor(state), 0)
@@ -192,15 +194,16 @@ class RNDNetwork_CNN(nn.Module):
 
     def update_parameters(self, predict, target):
         loss = self.loss_func(predict, target)
-        normalized_error = (loss - self.mean) / torch.sqrt(self.var)
-        self.mean = 0.99 * self.mean + 0.01 * loss
-        self.var = 0.99 * self.var + 0.01 * (loss ** 2)
+        loss_item = loss.item()
+        normalized_error = (loss_item - self.mean) / math.sqrt(self.var)
+        self.mean = 0.99 * self.mean + 0.01 * loss_item
+        self.var = 0.99 * self.var + 0.01 * (loss_item ** 2)
         self.optimizer.zero_grad()
         loss.backward()
         for param in self.predictor.parameters():
             param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
-        return normalized_error.item()
+        return normalized_error
 
     def get_intrinsic_reward(self, predict, target, CALC=True):
         """

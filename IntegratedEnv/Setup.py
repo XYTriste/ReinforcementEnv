@@ -340,7 +340,7 @@ def breakout_experiment_lib():
 
         'n_workers': 8,
 
-        'worker_steps': 64,
+        'worker_steps': 128,
 
         'batches': 4,
 
