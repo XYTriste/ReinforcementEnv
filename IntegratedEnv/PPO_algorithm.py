@@ -89,6 +89,7 @@ class PPOTrainer:
 
         self.test = test['use_test']    # 是否加载模型并进行测试
         self.test_model = test['test_model']
+        args.render_mode = "human" if self.test else "rgb_array"
 
         self.updates = updates
 
@@ -163,7 +164,10 @@ class PPOTrainer:
 
             pi, v = self.model(obs_to_torch(self.obs))
             values[:, t] = v.detach().cpu().numpy()
-            a = pi.sample()
+            if self.test:
+                a = torch.argmax(pi.probs, dim=1)
+            else:
+                a = pi.sample()
             actions[:, t] = a.cpu().numpy()
             log_pis[:, t] = pi.log_prob(a).detach().cpu().numpy()
 
@@ -288,14 +292,17 @@ class PPOTrainer:
     def save_info(self, message=""):
         formatted_time = datetime.now().strftime("%y_%m_%d_%H")
         env_name = self.args.env_name.split("/")[-1]
-        torch.save(self.model.state_dict(), "./checkpoint/{}_{}_{}_{}.pth".format(self.algorithm_name, env_name, formatted_time, message))
+        torch.save(self.model.state_dict(), "./checkpoint/PPO/{}_{}_{}_{}.pth".format(self.algorithm_name, env_name, formatted_time, message))
+        if self.use_rnd:
+            torch.save(self.RND_Network.state_dict(),
+                       "./checkpoint/RND/{}_{}_{}_{}.pth".format("RND", env_name, formatted_time, message))
 
         # for i in range(self.n_workers):
         #     fileName = './data/{}_{}_Process_{}_{}_{}.txt'.format(self.algorithm_name, env_name, i, formatted_time, message)
         #     with open(fileName, 'w') as file_object:
         #         file_object.write(str(self.returns[i]))
 
-        fileName = './data/{}_{}_All Process_{}_{}.txt'.format(self.algorithm_name, env_name, message, formatted_time)
+        fileName = './data/PPO/{}_{}_All Process_{}_{}.txt'.format(self.algorithm_name, env_name, message, formatted_time)
         with open(fileName, 'w') as file_object:
             file_object.write(str(self.all_returns))
 

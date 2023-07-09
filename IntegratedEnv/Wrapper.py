@@ -12,7 +12,7 @@ class Game:
     def __init__(self, args: SetupArgs, seed, gameNumber):
         self.gameNumber = gameNumber
         self.env_name = args.env_name
-        self.env = gymnasium.make(args.env_name)
+        self.env = gymnasium.make(args.env_name, render_mode=args.render_mode)
         self.env.seed(seed)
         self.obs_4 = np.zeros((4, 84, 84))
         self.obs_2_max = np.zeros((2, 84, 84))
@@ -30,6 +30,7 @@ class Game:
     def step(self, action):
         reward = 0.
         done = False
+        # print('action:', action)
         for i in range(4):
             s_prime, r, done, info, _ = self.env.step(action)
             s_prime = s_prime[self.width_start: self.width_end, self.height_start: self.height_end]

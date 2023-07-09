@@ -811,23 +811,23 @@ class DQN_Super_Trainer:
         name = self.args.env_name.split("/")[-1]
         torch.save({"main_net_state_dict": self.main_net.state_dict(),
                     "target_net_state_dict": self.target_net.state_dict()},
-                   "./checkpoint/dqn_{}_{}_{}.pth".format(name, formatted_time, message))
-        self.painter.plot_average_reward_by_list(None,
-                                                 window=1,
-                                                 title="{} on {}".format("DQN" + " Super" if self.use_super else "",
-                                                                         self.args.env_name),
-                                                 curve_label="{}".format("DQN" + " Super" if self.use_super else ""),
-                                                 colorIndex=self.watch_processing,
-                                                 savePath="./train_pic/dqn_{}_{}_{}.png".format(name, message,
-                                                                                                formatted_time),
-                                                 end=True
-                                                 )
-        for i in range(self.n_workers):
-            fileName = './data/Process_{}_{}_{}.txt'.format(i, formatted_time, message)
-            with open(fileName, 'w') as file_object:
-                file_object.write(str(self.returns[i]))
+                   "./checkpoint/DQN/dqn_{}_{}_{}.pth".format(name, formatted_time, message))
+        # self.painter.plot_average_reward_by_list(None,
+        #                                          window=1,
+        #                                          title="{} on {}".format("DQN" + " Super" if self.use_super else "",
+        #                                                                  self.args.env_name),
+        #                                          curve_label="{}".format("DQN" + " Super" if self.use_super else ""),
+        #                                          colorIndex=self.watch_processing,
+        #                                          savePath="./train_pic/dqn_{}_{}_{}.png".format(name, message,
+        #                                                                                         formatted_time),
+        #                                          end=True
+        #                                          )
+        # for i in range(self.n_workers):
+        #     fileName = './data/Process_{}_{}_{}.txt'.format(i, formatted_time, message)
+        #     with open(fileName, 'w') as file_object:
+        #         file_object.write(str(self.returns[i]))
 
-        fileName = './data/All Process_{}_{}.txt'.format(message, formatted_time)
+        fileName = './data/DQN/All Process_{}_{}.txt'.format(message, formatted_time)
         with open(fileName, 'w') as file_object:
             file_object.write(str(self.all_returns))
 

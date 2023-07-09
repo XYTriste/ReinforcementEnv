@@ -334,7 +334,7 @@ def breakout_experiment_lib():
     }
 
     PPO_configs = {
-        'updates': 10000,
+        'updates': 50000,
 
         'epochs': IntDynamicHyperParam(8),
 
@@ -356,7 +356,7 @@ def breakout_experiment_lib():
 
         'test': {
             'use_test': False,
-            'test_model': None,
+            'test_model': './checkpoint/PPO_Breakout-v5_23_07_09_17_final-10239645-_RND.pth',
         },
     }
 
@@ -682,7 +682,7 @@ def Montezuma_revenge_experiment_lib():
 
         'epochs': IntDynamicHyperParam(8),
 
-        'n_workers': 8,
+        'n_workers': 1,
 
         'worker_steps': 128,
 
@@ -699,8 +699,8 @@ def Montezuma_revenge_experiment_lib():
         'args': args,
 
         'test': {
-            'use_test': False,
-            'test_model': None,
+            'use_test': True,
+            'test_model': './checkpoint/PPO_MontezumaRevenge-v5_23_07_09_18_6000r-3725919-_RND.pth',
         },
     }
 
@@ -716,4 +716,4 @@ def Montezuma_revenge_experiment_lib():
 
 if __name__ == "__main__":
     # torch.multiprocessing.set_start_method('spawn')
-    Montezuma_revenge_experiment_lib()
+    breakout_experiment_lib()
