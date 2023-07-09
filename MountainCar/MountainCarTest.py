@@ -274,7 +274,7 @@ if __name__ == '__main__':
     test_mean_reward = []
     learn_step = 0  # DQN经验回放频率计数
 
-    reward_weight = 0.01
+    reward_weight = 0.15
 
     random.seed(23)
     np.random.seed(23)
@@ -311,7 +311,7 @@ if __name__ == '__main__':
                     #     external_reward = 0
 
                     # external_reward = 100 * (0.5 - abs(state[0])) - 10 * abs(state[1])
-                    predict, target = RNDNetWork(torch.from_numpy(state))
+                    predict, target = RNDNetWork(torch.from_numpy(s_prime))
                     # # predict_error = np.linalg.norm(target - predict)
                     # predict_error = RNDNetWork.update_parameters(predict, target)
                     # normalize_val = RNDNetWork.normalize_error(predict_error.item())
