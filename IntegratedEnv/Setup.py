@@ -640,7 +640,7 @@ def Montezuma_revenge_experiment_lib():
     args.OUTPUT_DIM = 18
     args.HIDDEN_DIM_NUM = 5
     args.obs_cut = {
-        'width_start': 0,
+        'width_start': 20,
         'width_end': 210,
         'height_start': 0,
         'height_end': 160
@@ -658,7 +658,7 @@ def Montezuma_revenge_experiment_lib():
     DQN_configs = {
         'updates': 1000000,
         'epochs': 8,
-        'n_workers': 8,
+        'n_workers': 1,
         'worker_steps': 4,
         'mini_batch_size': 32,
         'update_target_model': 250,
@@ -671,8 +671,8 @@ def Montezuma_revenge_experiment_lib():
             'rnd_weight_decay': 1,
         },
         'test': {
-            'use_test': False,
-            'test_model': None,
+            'use_test': True,
+            'test_model': './checkpoint/dqn_MontezumaRevenge-v5_23_07_09_14_.pth',
         },
         'algorithm_name': "Dueling DQN"
     }
@@ -684,7 +684,7 @@ def Montezuma_revenge_experiment_lib():
 
         'n_workers': 8,
 
-        'worker_steps': 64,
+        'worker_steps': 128,
 
         'batches': 4,
 
@@ -716,4 +716,4 @@ def Montezuma_revenge_experiment_lib():
 
 if __name__ == "__main__":
     # torch.multiprocessing.set_start_method('spawn')
-    breakout_experiment_lib()
+    Montezuma_revenge_experiment_lib()

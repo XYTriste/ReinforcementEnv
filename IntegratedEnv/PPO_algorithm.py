@@ -133,7 +133,7 @@ class PPOTrainer:
 
         self.value_loss = ClippedValueFunctionLoss()
 
-        if test:
+        if self.test:
             checkpoint = torch.load(self.test_model)
             self.model.load_state_dict(checkpoint)
 
@@ -288,7 +288,7 @@ class PPOTrainer:
     def save_info(self, message=""):
         formatted_time = datetime.now().strftime("%y_%m_%d_%H")
         env_name = self.args.env_name.split("/")[-1]
-        torch.save(self.model.state_dict(), "./checkpoint/{}_{}_{}_{}".format(self.algorithm_name, env_name, formatted_time, message))
+        torch.save(self.model.state_dict(), "./checkpoint/{}_{}_{}_{}.pth".format(self.algorithm_name, env_name, formatted_time, message))
 
         # for i in range(self.n_workers):
         #     fileName = './data/{}_{}_Process_{}_{}_{}.txt'.format(self.algorithm_name, env_name, i, formatted_time, message)

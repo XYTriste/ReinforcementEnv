@@ -645,15 +645,20 @@ def Montezuma_revenge_experiment_lib():
         'height_start': 0,
         'height_end': 160
     }
+    args.rnd = {
+            'use_rnd': True,
+            'rnd_weight': 0.01,
+            'rnd_weight_decay': 1,
+    }
     args.env_name = "ALE/MontezumaRevenge-v5"
-    args.reward_cut = 0.01
+    args.reward_cut = 1
 
     experiment.create(name="dqn")
 
-    configs = {
+    DQN_configs = {
         'updates': 1000000,
         'epochs': 8,
-        'n_workers': 8,
+        'n_workers': 1,
         'worker_steps': 4,
         'mini_batch_size': 32,
         'update_target_model': 250,
@@ -661,20 +666,47 @@ def Montezuma_revenge_experiment_lib():
         'args': args,
         'use_super': False,
         'rnd': {
-            'use_rnd': False,
+            'use_rnd': True,
             'rnd_weight': 0.01,
             'rnd_weight_decay': 1,
         },
         'test': {
-            'use_test': False,
-            'test_model': './checkpoint/dqn_MontezumaRevenge-v5_23_07_08_13_.pth',
+            'use_test': True,
+            'test_model': './checkpoint/dqn_MontezumaRevenge-v5_23_07_09_14_.pth',
         },
         'algorithm_name': "Dueling DQN"
     }
 
-    experiment.configs(configs)
+    PPO_configs = {
+        'updates': 10000,
 
-    m = DQN_Super_Trainer(**configs)
+        'epochs': IntDynamicHyperParam(8),
+
+        'n_workers': 8,
+
+        'worker_steps': 64,
+
+        'batches': 4,
+
+        'value_loss_coef': FloatDynamicHyperParam(0.5),
+
+        'entropy_bonus_coef': FloatDynamicHyperParam(0.01),
+
+        'clip_range': FloatDynamicHyperParam(0.1),
+
+        'learning_rate': FloatDynamicHyperParam(1e-3, (0, 1e-3)),
+
+        'args': args,
+
+        'test': {
+            'use_test': False,
+            'test_model': None,
+        },
+    }
+
+    experiment.configs(DQN_configs)
+
+    m = DQN_Super_Trainer(**DQN_configs)
 
     with experiment.start():
         m.run_training_loop()
@@ -683,4 +715,4 @@ def Montezuma_revenge_experiment_lib():
 
 
 if __name__ == "__main__":
-    breakout_experiment_lib()
+    RoadRunner_experiment_lib()
