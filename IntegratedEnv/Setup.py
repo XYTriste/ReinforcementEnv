@@ -301,11 +301,17 @@ def breakout_experiment_lib():
         'height_start': 0,
         'height_end': 160
     }
+    args.rnd = {
+        'use_rnd': True,
+        'rnd_weight': 0.01,
+        'rnd_weight_decay': 1,
+    }
+    args.env_name = "ALE/Breakout-v5"
     args.reward_cut = 1
 
-    experiment.create(name="dqn")
+    experiment.create(name="ppo")
 
-    configs = {
+    DQN_configs = {
         'updates': 1000000,
         'epochs': 8,
         'n_workers': 8,
@@ -314,21 +320,54 @@ def breakout_experiment_lib():
         'update_target_model': 250,
         'learning_rate': FloatDynamicHyperParam(1e-4, (0, 1e-3)),
         'args': args,
-        'use_super': True,
-        'test': True,
-        'test_model': './checkpoint/dqn_Breakout-v5_23_07_05_15_600000_rounds_super.pth',
-        'algorithm_name': "DQN"
+        'use_super': False,
+        'rnd': {
+            'use_rnd': True,
+            'rnd_weight': 0.01,
+            'rnd_weight_decay': 1,
+        },
+        'test': {
+            'use_test': False,
+            'test_model': None,
+        },
+        'algorithm_name': "Dueling DQN"
     }
 
-    experiment.configs(configs)
+    PPO_configs = {
+        'updates': 10000,
 
-    m = DQN_Super_Trainer(**configs)
+        'epochs': IntDynamicHyperParam(8),
+
+        'n_workers': 8,
+
+        'worker_steps': 64,
+
+        'batches': 4,
+
+        'value_loss_coef': FloatDynamicHyperParam(0.5),
+
+        'entropy_bonus_coef': FloatDynamicHyperParam(0.01),
+
+        'clip_range': FloatDynamicHyperParam(0.1),
+
+        'learning_rate': FloatDynamicHyperParam(1e-3, (0, 1e-3)),
+
+        'args': args,
+
+        'test': {
+            'use_test': False,
+            'test_model': None,
+        },
+    }
+
+    experiment.configs(PPO_configs)
+
+    m = PPOTrainer(**PPO_configs)
 
     with experiment.start():
         m.run_training_loop()
 
     m.destroy()
-    n.destroy()
 
 
 def RoadRunner_experiment_lib():
@@ -645,7 +684,7 @@ def Montezuma_revenge_experiment_lib():
 
         'n_workers': 8,
 
-        'worker_steps': 128,
+        'worker_steps': 64,
 
         'batches': 4,
 
@@ -677,4 +716,4 @@ def Montezuma_revenge_experiment_lib():
 
 if __name__ == "__main__":
     # torch.multiprocessing.set_start_method('spawn')
-    Montezuma_revenge_experiment_lib()
+    breakout_experiment_lib()
