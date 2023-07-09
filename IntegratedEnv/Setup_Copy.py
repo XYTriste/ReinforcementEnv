@@ -338,7 +338,7 @@ def breakout_experiment_lib():
 
         'epochs': IntDynamicHyperParam(8),
 
-        'n_workers': 8,
+        'n_workers': 1,
 
         'worker_steps': 128,
 
@@ -356,7 +356,7 @@ def breakout_experiment_lib():
 
         'test': {
             'use_test': True,
-            'test_model': './checkpoint/PPO_Breakout-v5_23_07_09_12_1000r-1023642-_RND.pth',
+            'test_model': './checkpoint/PPO/PPO_Breakout-v5_23_07_09_21_1000r-1023439-_RND.pth',
         },
     }
 
@@ -715,4 +715,4 @@ def Montezuma_revenge_experiment_lib():
 
 
 if __name__ == "__main__":
-    RoadRunner_experiment_lib()
+    breakout_experiment_lib()

@@ -91,28 +91,28 @@ class PPOTrainer:
         self.test_model = test['test_model']
         args.render_mode = "human" if self.test else "rgb_array"
 
-        self.updates = updates
+        self.updates = updates  # 总更新次数
 
-        self.epochs = epochs
+        self.epochs = epochs    # 每次采样训练epochs次模型
 
-        self.n_workers = n_workers
+        self.n_workers = n_workers  # 线程数量
 
-        self.worker_steps = worker_steps
+        self.worker_steps = worker_steps    # 一个线程在一次update时的step数量
 
-        self.batches = batches
+        self.batches = batches  # mini batches的数量
 
-        self.batch_size = self.n_workers * self.worker_steps
+        self.batch_size = self.n_workers * self.worker_steps    # 所有线程在一次update时总共需要的样本数量
 
-        self.mini_batch_size = self.batch_size // self.batches
+        self.mini_batch_size = self.batch_size // self.batches  # 每个mini batch的大小
         assert (self.batch_size % self.batches == 0)
 
-        self.value_loss_coef = value_loss_coef
+        self.value_loss_coef = value_loss_coef  # 状态价值的均方误差损失系数
 
-        self.entropy_bonus_coef = entropy_bonus_coef
+        self.entropy_bonus_coef = entropy_bonus_coef    # 熵的系数
 
-        self.clip_range = clip_range
+        self.clip_range = clip_range    # 归一化的范围
 
-        self.learning_rate = learning_rate
+        self.learning_rate = learning_rate  # 学习率
 
         self.workers = [Worker(args, 47 + i, i) for i in range(self.n_workers)]
         self.obs = np.zeros((self.n_workers, 4, 84, 84), dtype=np.uint8)
@@ -124,9 +124,9 @@ class PPOTrainer:
             recv, info = worker.child.recv()
             self.obs[i] = recv
 
-        self.model = Model(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM).to(device)
+        self.model = Model(self.INPUT_DIM, self.HIDDEN_DIM, self.OUTPUT_DIM).to(device)     # AC框架的网络模型
 
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=2.5e-4)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=2.5e-4)   # 网络的优化器
 
         self.gae = GAE(self.n_workers, self.worker_steps, 0.99, 0.95)  # 广义优势估计函数，用于计算PPO损失函数中对动作值的优势估计
 
@@ -147,6 +147,10 @@ class PPOTrainer:
         self.all_frames = 0     # 记录总共训练帧数
 
     def sample(self) -> Dict[str, torch.Tensor]:
+        """
+
+        :return: 将样本作为字典类型返回
+        """
         rewards = np.zeros((self.n_workers, self.worker_steps), dtype=np.float32)
 
         actions = np.zeros((self.n_workers, self.worker_steps), dtype=np.int32)
@@ -215,7 +219,7 @@ class PPOTrainer:
 
     def train(self, samples: Dict[str, torch.Tensor]):
         for _ in range(self.epochs()):
-            indexes = torch.randperm(self.batch_size)
+            indexes = torch.randperm(self.batch_size)   # 返回一个内容在范围在[0, self.batch_size]内，大小为(batch_size,)的张量。其实就是随机取下标。
 
             for start in range(0, self.batch_size, self.mini_batch_size):
                 end = start + self.mini_batch_size
