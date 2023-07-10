@@ -129,6 +129,8 @@ class PPOTrainer:
         self.workers = [Worker(args, 47 + i, i) for i in range(self.n_workers)]
         self.obs = np.zeros((self.n_workers, 4, 84, 84), dtype=np.uint8)
 
+        self.attention_model = SelfAttentionModel(512, 512)
+
         for worker in self.workers:
             worker.child.send(("reset", None))
 
@@ -196,6 +198,9 @@ class PPOTrainer:
 
                 if self.use_rnd:
                     predict, target = self.RND_Network(self.obs[w])
+                    attention_weight, _ = self.attention_model(target)
+                    attention_weight = attention_weight[0]
+                    heatmap = plt.get_cmap('hot')(attention_weight.detach().cpu().numpy())[:, :, : 4]
                     intrinsic_reward = self.RND_Network.get_intrinsic_reward(predict, target)
                     rewards[w, t] += self.rnd_weight * intrinsic_reward
 

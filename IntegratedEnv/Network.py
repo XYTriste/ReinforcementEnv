@@ -58,6 +58,24 @@ class CNN(nn.Module):
         return x
 
 
+class SelfAttentionModel(nn.Module):
+    def __init__(self, input_dim, output_dim):
+        super(SelfAttentionModel, self).__init__()
+        self.query = nn.Linear(input_dim, output_dim)
+        self.key = nn.Linear(input_dim, output_dim)
+        self.value = nn.Linear(input_dim, output_dim)
+
+    def forward(self, input):
+        q = self.query(input)
+        k = self.key(input)
+        v = self.value(input)
+
+        attn_weights = F.softmax(q @ k.transpose(-2, -1) / (self.key.out_features ** 0.5), dim=-1)
+        output = attn_weights @ v
+
+        return output, attn_weights
+
+
 class Actor(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim):
         super(Actor, self).__init__()
