@@ -356,7 +356,7 @@ def breakout_experiment_lib():
 
         'test': {
             'use_test': True,
-            'test_model': './checkpoint/PPO/PPO_Breakout-v5_23_07_10_05_16000r-16257228-_RND.pth',
+            'test_model': './checkpoint/PPO/PPO_Breakout-v5_23_07_10_18_13000r-13311667-_RND.pth',
         },
     }
 

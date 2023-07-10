@@ -1,3 +1,4 @@
+import os
 from typing import Dict
 from Tools import *
 from datetime import datetime
@@ -73,6 +74,16 @@ class PPOTrainer:
         self.HIDDEN_DIM_NUM = args.HIDDEN_DIM_NUM  # 隐藏层的数量
 
         self.algorithm_name = "PPO"
+        self.formatted_time = datetime.now().strftime("%y_%m_%d_%H")    # 本次训练的启动时间
+        self.checkpoint_PPO_dir_name = './checkpoint/PPO/' + self.formatted_time
+        self.checkpoint_RND_dir_name = './checkpoint/RND/' + self.formatted_time
+        self.data_PPO_dir_name = './data/PPO/' + self.formatted_time
+        if os.path.exists(self.checkpoint_PPO_dir_name):
+            print('目录已存在，不需要创建')
+        else:
+            os.mkdir(self.checkpoint_PPO_dir_name)
+            os.mkdir(self.checkpoint_RND_dir_name)
+            os.mkdir(self.data_PPO_dir_name)
 
         """----------RND网络参数定义部分----------"""
         self.use_rnd = args.rnd['use_rnd']
@@ -294,19 +305,18 @@ class PPOTrainer:
         self.save_info(message="final-{}-{}".format(self.all_frames, "_RND" if self.use_rnd else ""))
 
     def save_info(self, message=""):
-        formatted_time = datetime.now().strftime("%y_%m_%d_%H")
         env_name = self.args.env_name.split("/")[-1]
-        torch.save(self.model.state_dict(), "./checkpoint/PPO/{}_{}_{}_{}.pth".format(self.algorithm_name, env_name, formatted_time, message))
+        torch.save(self.model.state_dict(), "./checkpoint/PPO/{}/{}_{}_{}.pth".format(self.formatted_time, self.algorithm_name, env_name,  message))
         if self.use_rnd:
             torch.save(self.RND_Network.state_dict(),
-                       "./checkpoint/RND/{}_{}_{}_{}.pth".format("RND", env_name, formatted_time, message))
+                       "./checkpoint/RND/{}/{}_{}_{}.pth".format(self.formatted_time, "RND", env_name,  message))
 
         # for i in range(self.n_workers):
         #     fileName = './data/{}_{}_Process_{}_{}_{}.txt'.format(self.algorithm_name, env_name, i, formatted_time, message)
         #     with open(fileName, 'w') as file_object:
         #         file_object.write(str(self.returns[i]))
 
-        fileName = './data/PPO/{}_{}_All Process_{}_{}.txt'.format(self.algorithm_name, env_name, message, formatted_time)
+        fileName = './data/PPO/{}/{}_All Process_{}_{}.txt'.format(self.formatted_time, self.algorithm_name, env_name, message, )
         with open(fileName, 'w') as file_object:
             file_object.write(str(self.all_returns))
 
