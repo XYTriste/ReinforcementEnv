@@ -82,7 +82,7 @@ class PPOTrainer:
 
         """--------------------------------RND网络的定义部分--------------------------------"""
         if self.use_rnd:
-            self.RND_Network = RNDNetwork_CNN(args).to("cuda" if torch.cuda.is_available() else "cpu")
+            self.RND_Network = RNDNetwork_CNN(self.INPUT_DIM, self.HIDDEN_DIM, 512).to("cuda" if torch.cuda.is_available() else "cpu")
         else:
             self.RND_Network = None
         """--------------------------------RND网络的定义结束--------------------------------"""

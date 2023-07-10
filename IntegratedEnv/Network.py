@@ -160,12 +160,12 @@ class RNDNetwork_CNN(nn.Module):
     通常用于鼓励智能体更多的探索新的状态。
     """
 
-    def __init__(self, args):
+    def __init__(self, INPUT_DIM, HIDDEN_DIM, OUTPUT_DIM):
         super(RNDNetwork_CNN, self).__init__()
-        self.INPUT_DIM = args.INPUT_DIM  # 输入层的大小
-        self.HIDDEN_DIM = args.HIDDEN_DIM  # 隐藏层的大小
-        self.OUTPUT_DIM = args.OUTPUT_DIM  # 输出层的大小
-        self.HIDDEN_DIM_NUM = args.HIDDEN_DIM_NUM
+        self.INPUT_DIM = INPUT_DIM  # 输入层的大小
+        self.HIDDEN_DIM = HIDDEN_DIM  # 隐藏层的大小
+        self.OUTPUT_DIM = OUTPUT_DIM  # 输出层的大小
+
         self.LR = 0.001
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -176,7 +176,7 @@ class RNDNetwork_CNN(nn.Module):
             param.requires_grad = False
 
         self.optimizer = torch.optim.Adam(self.predictor.parameters(), lr=self.LR)
-        self.loss_func = nn.HuberLoss()
+        self.loss_func = nn.MSELoss()
 
         self.sum_error = 0.0
         self.running_std_error = 0.0
