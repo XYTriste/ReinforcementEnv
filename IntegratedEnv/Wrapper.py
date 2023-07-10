@@ -42,7 +42,8 @@ class Game:
                 self.obs_2_max[i % 2] = self._process_obs(s_prime)
             reward += r
             lives = self.env.unwrapped.ale.lives()
-            if lives < self.lives:
+            if lives < self.lives or self.frames > 18000:
+                # print('frames:', self.frames)
                 done = True
                 break
 
