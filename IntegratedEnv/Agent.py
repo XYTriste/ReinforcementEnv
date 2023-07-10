@@ -14,7 +14,7 @@ from tqdm import tqdm
 from Algorithm import NGU
 from Network import *
 from Tools import Painter
-from replaybuffer import *
+from replaybuffer import ReplayBuffer_unuse
 
 
 def random_init(agent, cnn_model, env: gymnasium.Env, rnd: RNDNetwork):
@@ -571,7 +571,7 @@ class Agent_Experiment:
         self.args = args
         self.painter = Painter()
         self.env = env
-        self.rnd = RNDNetwork_CNN(args)
+        self.rnd = RNDNetwork_CNN(args.INPUT_DIM, args.HIDDEN_DIM, args.OUTPUT_DIM)
         self.rnd_weight = 0.4
         self.colors = ["red", "blue", "green", "yellow", "pink", "orange"]
 
@@ -818,8 +818,9 @@ class Agent_Experiment:
         if test:
             pass
         else:
-            self.algorithm.memory_reset()
-            self.collect_memories(RND)
+            pass
+            # self.algorithm.memory_reset()
+            # self.collect_memories(RND)
         for i in range(10):
             with tqdm(total=int(num_episodes / 10), desc=f"Iteration {i}") as pbar:
 
@@ -888,25 +889,25 @@ class Agent_Experiment:
                                 "loss per 10 rounds": f"{np.mean(loss_list[-10:]):9f}",
                                 "exploration": f"{self.algorithm.epsilon:6f}",
                                 "frame count": f"{info}",
-                                "Super train count": f"{self.algorithm.super_train_count}"
+                                # "Super train count": f"{self.algorithm.super_train_count}"
                             }
                         )
-                    if len(return_list) == 20:
-                        self.painter.plot_average_reward_by_list(return_list,
-                                                                 window=1,
-                                                                 title="{} on breakout".format(self.algorithm.NAME),
-                                                                 curve_label="{}".format(
-                                                                     self.algorithm.NAME + "RND" if RND else ""),
-                                                                 color=self.colors[order - 1]
-                                                                 )
-                        return_list = []
-
-                    if (num_episodes / 10 * i + episode + 1) % save_model_freq == 0 and not test:
-                        torch.save({"main_net_state_dict": self.algorithm.main_net.state_dict(),
-                                    "target_net_state_dict": self.algorithm.target_net.state_dict()},
-                                   "./checkpoint/{}_model_breakout_{}_{}.pth".format(self.algorithm.NAME,
-                                                                                     num_episodes / 10 * i + episode + 1,
-                                                                                     "T" if RND else "F"))
+                    # if len(return_list) == 20:
+                    #     self.painter.plot_average_reward_by_list(return_list,
+                    #                                              window=1,
+                    #                                              title="{} on breakout".format(self.algorithm.NAME),
+                    #                                              curve_label="{}".format(
+                    #                                                  self.algorithm.NAME + "RND" if RND else ""),
+                    #                                              color=self.colors[order - 1]
+                    #                                              )
+                    #     return_list = []
+                    #
+                    # if (num_episodes / 10 * i + episode + 1) % save_model_freq == 0 and not test:
+                    #     torch.save({"main_net_state_dict": self.algorithm.main_net.state_dict(),
+                    #                 "target_net_state_dict": self.algorithm.target_net.state_dict()},
+                    #                "./checkpoint/{}_model_breakout_{}_{}.pth".format(self.algorithm.NAME,
+                    #                                                                  num_episodes / 10 * i + episode + 1,
+                    #                                                                  "T" if RND else "F"))
 
                     pbar.update(1)
 

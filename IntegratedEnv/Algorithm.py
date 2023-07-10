@@ -21,6 +21,7 @@ from labml_helpers.schedule import Piecewise
 from labml_nn.rl.dqn import QFuncLoss
 from dqn_model import Model
 from labml_nn.rl.dqn.replay_buffer import ReplayBuffer
+from replaybuffer import ReplayBuffer_unuse
 from Wrapper import Worker
 from Tools import Painter
 from datetime import datetime
@@ -162,7 +163,7 @@ class DQN_CNN:
         self.learn_step_counter = 0
 
         self.memory_size = 2 ** 16
-        self.memory = ReplayBuffer(self.memory_size, 4)
+        self.memory = ReplayBuffer_unuse(self.memory_size, 4)
         self.memory_counter = 0
         self.learn_frequency = 0  # 记录执行了多少次step方法，控制经验回放的速率
         self.frame_count = 0  # 记录更新过多少帧
@@ -179,19 +180,22 @@ class DQN_CNN:
     def select_action(self, state):
         if np.random.uniform(0, 1) < self.epsilon:
             action = np.random.randint(0, self.OUTPUT_DIM)
+            q_value = float('-inf')
         else:
             if not isinstance(state, torch.Tensor):
                 state = torch.from_numpy(state).unsqueeze(0).to(self.device)
-            action = self.main_net(state).argmax().item()
+            q_action = self.main_net(state)
+            action = q_action.argmax().item()
+            q_value = q_action[0][action]
 
-        return action
+        return q_value, action
 
     def memory_reset(self):
         self.memory = ReplayBuffer(self.memory_size, 4)
         self.memory_counter = 0
         self.learn_frequency = 0
 
-    def step(self, index, a, r, done) -> float:
+    def step(self, index, s, a, r, done) -> float:
         """
         得到下一个观测之后才能调用
         """
@@ -387,9 +391,9 @@ class SuperBuffer:
 
 
 class Super_net:
-    def __init__(self, model):
+    def __init__(self, model, lr=1e-5):
         self.model = model
-        self.lr = 1e-5
+        self.lr = lr
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         self.loss_func = torch.nn.MSELoss()
         self.buffer = SuperBuffer(1)
@@ -459,10 +463,9 @@ class DQN_CNN_Super:
         self.target_net.load_state_dict(self.main_net.state_dict())
         self.target_net.eval()
 
-        self.main_net_deepcopy = copy.deepcopy(self.main_net)
         model = CNN(self.INPUT_DIM, self.OUTPUT_DIM).to(self.device)
-        model.load_state_dict(self.main_net_deepcopy.state_dict())
-        self.super_net = Super_net(model)
+        model.load_state_dict(self.main_net.state_dict())
+        self.super_net = Super_net(model, lr=self.LR)
 
         self.super_net_init = CNN(self.INPUT_DIM, self.OUTPUT_DIM).to(self.device)
         self.super_net_init.load_state_dict(model.state_dict())

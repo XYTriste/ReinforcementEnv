@@ -81,9 +81,9 @@ class PPOTrainer:
         if os.path.exists(self.checkpoint_PPO_dir_name):
             print('目录已存在，不需要创建')
         else:
-            os.mkdir(self.checkpoint_PPO_dir_name)
-            os.mkdir(self.checkpoint_RND_dir_name)
-            os.mkdir(self.data_PPO_dir_name)
+            os.makedirs(self.checkpoint_PPO_dir_name)
+            os.makedirs(self.checkpoint_RND_dir_name)
+            os.makedirs(self.data_PPO_dir_name)
 
         """----------RND网络参数定义部分----------"""
         self.use_rnd = args.rnd['use_rnd']
