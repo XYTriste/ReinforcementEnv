@@ -678,11 +678,11 @@ def Montezuma_revenge_experiment_lib():
     }
 
     PPO_configs = {
-        'updates': 10000,
+        'updates': 50000,
 
         'epochs': IntDynamicHyperParam(8),
 
-        'n_workers': 1,
+        'n_workers': 8,
 
         'worker_steps': 128,
 
@@ -699,7 +699,7 @@ def Montezuma_revenge_experiment_lib():
         'args': args,
 
         'test': {
-            'use_test': True,
+            'use_test': False,
             'test_model': './checkpoint/PPO_MontezumaRevenge-v5_23_07_09_18_6000r-3725919-_RND.pth',
         },
     }
@@ -797,4 +797,4 @@ def Boxing_experiment_lib():
 
 if __name__ == "__main__":
     # torch.multiprocessing.set_start_method('spawn')
-    Boxing_experiment_lib()
+    Montezuma_revenge_experiment_lib()

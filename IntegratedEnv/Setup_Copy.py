@@ -782,7 +782,7 @@ def Boxing_experiment_lib():
 
         'test': {
             'use_test': True,
-            'test_model': './checkpoint/PPO/23_07_10_19/PPO_Boxing-v5_7000r-7166304-.pth',
+            'test_model': './checkpoint/PPO/Boxing-v5_23_07_10_22/final-51198569-.pth',
         },
     }
 

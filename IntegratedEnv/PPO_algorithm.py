@@ -74,10 +74,11 @@ class PPOTrainer:
         self.HIDDEN_DIM_NUM = args.HIDDEN_DIM_NUM  # 隐藏层的数量
 
         self.algorithm_name = "PPO"
+        self.env_name = self.args.env_name.split("/")[-1]
         self.formatted_time = datetime.now().strftime("%y_%m_%d_%H")    # 本次训练的启动时间
-        self.checkpoint_PPO_dir_name = './checkpoint/PPO/' + self.formatted_time
-        self.checkpoint_RND_dir_name = './checkpoint/RND/' + self.formatted_time
-        self.data_PPO_dir_name = './data/PPO/' + self.formatted_time
+        self.checkpoint_PPO_dir_name = './checkpoint/PPO/' + self.env_name + "_" + self.formatted_time
+        self.checkpoint_RND_dir_name = './checkpoint/RND/' + self.env_name + "_" + self.formatted_time
+        self.data_PPO_dir_name = './data/PPO/' + self.env_name + "_" + self.formatted_time
         if os.path.exists(self.checkpoint_PPO_dir_name):
             print('目录已存在，不需要创建')
         else:
@@ -305,18 +306,18 @@ class PPOTrainer:
         self.save_info(message="final-{}-{}".format(self.all_frames, "_RND" if self.use_rnd else ""))
 
     def save_info(self, message=""):
-        env_name = self.args.env_name.split("/")[-1]
-        torch.save(self.model.state_dict(), "./checkpoint/PPO/{}/{}_{}_{}.pth".format(self.formatted_time, self.algorithm_name, env_name,  message))
+
+        torch.save(self.model.state_dict(), "{}/{}.pth".format(self.checkpoint_PPO_dir_name, message))
         if self.use_rnd:
             torch.save(self.RND_Network.state_dict(),
-                       "./checkpoint/RND/{}/{}_{}_{}.pth".format(self.formatted_time, "RND", env_name,  message))
+                       "{}/{}.pth".format(self.checkpoint_RND_dir_name,  message))
 
         # for i in range(self.n_workers):
         #     fileName = './data/{}_{}_Process_{}_{}_{}.txt'.format(self.algorithm_name, env_name, i, formatted_time, message)
         #     with open(fileName, 'w') as file_object:
         #         file_object.write(str(self.returns[i]))
 
-        fileName = './data/PPO/{}/{}_All Process_{}_{}.txt'.format(self.formatted_time, self.algorithm_name, env_name, message, )
+        fileName = '{}/All Process_{}.txt'.format(self.data_PPO_dir_name, message)
         with open(fileName, 'w') as file_object:
             file_object.write(str(self.all_returns))
 
