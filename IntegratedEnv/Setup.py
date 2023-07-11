@@ -682,7 +682,7 @@ def Montezuma_revenge_experiment_lib():
 
         'epochs': IntDynamicHyperParam(8),
 
-        'n_workers': 8,
+        'n_workers': 64,
 
         'worker_steps': 128,
 

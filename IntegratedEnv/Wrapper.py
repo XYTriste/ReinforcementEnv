@@ -31,7 +31,7 @@ class Game:
         reward = 0.
         done = False
         # print('action:', action)
-        for i in range(4):
+        for i in range(1):
             s_prime, r, done, info, _ = self.env.step(action)
             s_prime = s_prime[self.width_start: self.width_end, self.height_start: self.height_end]
             # plt.imshow(s_prime)
@@ -46,7 +46,7 @@ class Game:
                 # print('frames:', self.frames)
                 done = True
                 break
-
+        self.obs_2_max[0] = self._process_obs(s_prime)
         reward *= self.reward_cut
         self.rewards.append(reward)
         self.frames += 1
