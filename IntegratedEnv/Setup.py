@@ -763,7 +763,7 @@ def Boxing_experiment_lib():
 
         'epochs': IntDynamicHyperParam(8),
 
-        'n_workers': 8,
+        'n_workers': 128,
 
         'worker_steps': 128,
 
