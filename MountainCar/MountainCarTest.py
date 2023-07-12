@@ -50,6 +50,54 @@ class Net(nn.Module):
         return actions_value
 
 
+class MyNet(nn.Module):
+    def __init__(self, INPUT_DIM, OUTPUT_DIM):
+        super(MyNet, self).__init__()
+        self.recorder = nn.Sequential(
+            nn.Linear(INPUT_DIM, 32),
+            nn.ReLU(),
+            nn.Linear(32, 32),
+            nn.ReLU(),
+            nn.Linear(32, OUTPUT_DIM)
+        )
+        self.target = nn.Sequential(
+            nn.Linear(INPUT_DIM, 32),
+            nn.ReLU(),
+            nn.Linear(32, 32),
+            nn.ReLU(),
+            nn.Linear(32, OUTPUT_DIM)
+        )
+        self.initial = nn.Sequential(
+            nn.Linear(INPUT_DIM, 32),
+            nn.ReLU(),
+            nn.Linear(32, 32),
+            nn.ReLU(),
+            nn.Linear(32, OUTPUT_DIM)
+        )
+        self.initial.load_state_dict(self.recorder.state_dict())
+        self.LR = 1e-5
+        self.optimizer = torch.optim.Adam(self.recorder.parameters(), lr=self.LR)
+        self.loss_func = nn.MSELoss()
+
+    def forward(self, state_action):
+        record = self.recorder(state_action)
+        target = self.target(state_action)
+
+        return record, target
+
+    def learn(self, state_action, record, target):
+        initial_output = self.initial(state_action).norm()  # 网络的初始误差
+        current_error = self.loss_func(record, target)  # 当前的误差
+        self.optimizer.zero_grad()
+        current_error.backward()
+        self.optimizer.step()
+
+        # initial_error = self.loss_func(initial_output, record)
+        normalize_error = current_error / (initial_output)
+
+        return normalize_error.item()
+
+
 class RNDNet(nn.Module):
     def __init__(self, INPUT_DIM, OUTPUT_DIM):
         super(RNDNet, self).__init__()
@@ -89,7 +137,7 @@ class RNDNet(nn.Module):
             param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
 
-        return loss
+        return loss.item()
 
     def normalize_error(self, predict_error):
         if predict_error < self.normalize_min_error:
@@ -240,6 +288,18 @@ class Painter:
         self.ax.plot(self.x_values, self.y_values)
         plt.show()
 
+    def plot_reward(self, reward_list, window, end=False):
+        plt.figure(window)
+        plt.xlabel("Episodes")
+        plt.ylabel("Returns")
+        plt.title("DQN on MountainCar-v0")
+        # list_t = [np.mean(reward_list[:i]) for i in range(len(reward_list))]
+        plt.plot(np.array(reward_list))
+        if end:
+            plt.show()
+        else:
+            plt.pause(0.001)
+
 
 def run_evaluate_episodes(agent: DQN, eval_episodes=5, render=False):
     eval_reward = []
@@ -259,11 +319,38 @@ def run_evaluate_episodes(agent: DQN, eval_episodes=5, render=False):
     return np.mean(eval_reward)
 
 
+specify_state = None
+specify_count = 0
+record_list = []
+target_list = []
+painter = Painter()
+
+def Specify_state(net:MyNet, state_action):
+    global specify_state
+    global record_list
+    global target_list
+    if specify_count < 7:
+        return
+    if specify_count == 7:
+        specify_state = state_action
+    else:
+        if net.loss_func(specify_state, state_action) < 0.001:
+            record_output = net.recorder(state_action)
+            target_output = net.target(state_action)
+            record_output = record_output.norm().item()
+            target_output = target_output.norm().item()
+            record_list.append(record_output)
+            target_list.append(target_output)
+            painter.plot_reward(record_list, 1)
+            painter.plot_reward(target_list, 1)
+
+
+
 if __name__ == '__main__':
     env = gym.make("MountainCar-v0", render_mode="rgb_array")
     agent = Agent(env.observation_space.shape[0], env.action_space.n)
     DQNAgent = DQN(agent)
-    RNDNetWork = RNDNet(2, 1)
+    RNDNetWork = RNDNet(2, 2)
     recorder = Recorder()
     painter = Painter()
 
@@ -282,6 +369,8 @@ if __name__ == '__main__':
 
     for i in range(10):
         with tqdm(total=int(rounds / 10), desc=f'Iteration {i}') as pbar:
+            net = MyNet(4, 3)
+
             for episode in range(rounds // 10):
                 state, _ = env.reset(seed=21)
                 episode_reward = 0
@@ -298,9 +387,17 @@ if __name__ == '__main__':
                     action = DQNAgent.epsilon_greedy_policy(state)
 
                     time_step += 1
+                    specify_count += 1
 
                     s_prime, extrinsic_reward, done, _, _, = env.step(action)
-
+                    action_numpy = np.full((2,), action)
+                    state_action = np.vstack((state, action_numpy))
+                    state_action = torch.from_numpy(state_action).float().unsqueeze(0)
+                    state_action = state_action.reshape(-1)
+                    record, target = net(state_action)
+                    coff = net.learn(state_action, record, target)
+                    Specify_state(net, state_action)
+                    print("相似状态系数:{:.3f}".format(coff))
                     # external_reward = (s_prime[0] - state[0]) + (s_prime[1] ** 2 - state[1] ** 2)
 
                     # if s_prime[0] > -0.5:
@@ -313,23 +410,19 @@ if __name__ == '__main__':
                     # external_reward = 100 * (0.5 - abs(state[0])) - 10 * abs(state[1])
                     predict, target = RNDNetWork(torch.from_numpy(s_prime))
                     # # predict_error = np.linalg.norm(target - predict)
-                    # predict_error = RNDNetWork.update_parameters(predict, target)
+                    predict_error = RNDNetWork.update_parameters(predict, target)
                     # normalize_val = RNDNetWork.normalize_error(predict_error.item())
                     # episode_predict_error += normalize_val
                     #
                     # r = external_reward + normalize_val
                     # r = (-external_reward) * predict_error.item()
-                    if done:
-                        special_reward = 0
-                    else:
-                        special_reward = 0
-                    r = extrinsic_reward + reward_weight * (target - predict).item() + special_reward
+                    r = extrinsic_reward + reward_weight * predict_error
                     # r = external_reward if not done else 0
                     DQNAgent.store_transition(state, action, r, s_prime, done)
 
                     episode_reward += extrinsic_reward
                     episode_external_reward += extrinsic_reward
-                    episode_intrinsic_reward += reward_weight * (target - predict).item()
+                    episode_intrinsic_reward += reward_weight * predict_error
                     state = s_prime
                     learn_step += 1
                     if DQNAgent.memory_counter > DQNAgent.MEMORY_CAPACITY and learn_step % 5 == 0:
@@ -353,7 +446,7 @@ if __name__ == '__main__':
                         episode_external_reward,
                         episode_intrinsic_reward,
                         episode_DQN_loss / (episode_learn_count if episode_learn_count != 0 else 1), DQNAgent.EPSILON))
-                DQNAgent.plot_reward(recorder.episode_rewards, 1)
+                # DQNAgent.plot_reward(recorder.episode_rewards, 1)
                 if (episode + 1) % 10 == 0:
                     pbar.set_postfix(
                         {
