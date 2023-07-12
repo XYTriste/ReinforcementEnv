@@ -640,7 +640,7 @@ def Montezuma_revenge_experiment_lib():
     args.OUTPUT_DIM = 18
     args.HIDDEN_DIM_NUM = 5
     args.obs_cut = {
-        'width_start': 20,
+        'width_start': 0,
         'width_end': 210,
         'height_start': 0,
         'height_end': 160
@@ -650,7 +650,7 @@ def Montezuma_revenge_experiment_lib():
             'rnd_weight': 0.01,
             'rnd_weight_decay': 1,
     }
-    args.env_name = "ALE/MontezumaRevenge-v5"
+    args.env_name = "MontezumaRevengeNoFrameskip-v4"
     args.reward_cut = 1
 
     experiment.create(name="ppo")
@@ -682,9 +682,9 @@ def Montezuma_revenge_experiment_lib():
 
         'epochs': IntDynamicHyperParam(8),
 
-        'n_workers': 64,
+        'n_workers': 32,
 
-        'worker_steps': 128,
+        'worker_steps': 1,
 
         'batches': 4,
 

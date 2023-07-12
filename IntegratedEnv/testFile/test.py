@@ -1,6 +1,6 @@
 import ast
-f1 = open('../data/PPO/PPO_Breakout-v5_All Process_16000r-16257228-_RND_23_07_10_05.txt', 'r')
-f2 = open('../data/PPO/PPO_Breakout-v5_All Process_2000r-2047643-_RND_23_07_09_22.txt', 'r')
+f1 = open('../data/PPO/MontezumaRevengeNoFrameskip-v4_23_07_12_12/All Process_46000r-1349179-_RND.txt', 'r')
+f2 = open('../data/PPO/MontezumaRevengeNoFrameskip-v4_23_07_12_12/All Process_47000r-1349179-_RND.txt', 'r')
 list1 = ast.literal_eval(f1.readline())
 list2 = ast.literal_eval(f2.readline())
 dic1 = {}
