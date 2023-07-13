@@ -190,10 +190,19 @@ class RNDNetwork_CNN(nn.Module):
         self.predictor = CNN(self.INPUT_DIM, self.OUTPUT_DIM).to(self.device)
         self.target = CNN(self.INPUT_DIM, self.OUTPUT_DIM).to(self.device)
 
+        self.recorder = CNN(self.INPUT_DIM, self.OUTPUT_DIM).to(self.device)
+        self.recorder_target = CNN(self.INPUT_DIM, self.OUTPUT_DIM).to(self.device)
+        self.initial_record = CNN(self.INPUT_DIM, self.OUTPUT_DIM).to(self.device)
+
         for param in self.target.parameters():
+            param.requires_grad = False
+        for param in self.recorder_target.parameters():
+            param.requires_grad = False
+        for param in self.initial_record.parameters():
             param.requires_grad = False
 
         self.optimizer = torch.optim.Adam(self.predictor.parameters(), lr=self.LR)
+        self.recorder_optimizer = torch.optim.Adam(self.recorder.parameters(), lr=self.LR)
         self.loss_func = nn.MSELoss()
 
         self.sum_error = 0.0
@@ -243,3 +252,51 @@ class RNDNetwork_CNN(nn.Module):
         self.running_mean_deviation += (np.abs(delta) / self.data_count)
 
         self.sum_error += data
+
+
+class RRNA(nn.Module):   # Reduce repeat nonsense action
+    def __init__(self, INPUT_DIM, OUTPUT_DIM):
+        super(MyNet, self).__init__()
+        self.recorder = nn.Sequential(
+            nn.Linear(INPUT_DIM, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, OUTPUT_DIM)
+        )
+        self.target = nn.Sequential(
+            nn.Linear(INPUT_DIM, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, OUTPUT_DIM)
+        )
+        self.initial = nn.Sequential(
+            nn.Linear(INPUT_DIM, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, OUTPUT_DIM)
+        )
+        self.initial.load_state_dict(self.recorder.state_dict())
+        self.LR = 1e-5
+        self.optimizer = torch.optim.Adam(self.recorder.parameters(), lr=self.LR)
+        self.loss_func = nn.MSELoss()
+
+    def forward(self, state_action):
+        record = self.recorder(state_action)
+        target = self.target(state_action)
+
+        return record, target
+
+    def learn(self, state_action, record, target):
+        initial_output = self.initial(state_action).norm()  # 网络的初始误差
+        current_error = self.loss_func(record, target)  # 当前的误差
+        self.optimizer.zero_grad()
+        current_error.backward()
+        self.optimizer.step()
+
+        # initial_error = self.loss_func(initial_output, record)
+        normalize_error = current_error / (initial_output)
+
+        return normalize_error.item()

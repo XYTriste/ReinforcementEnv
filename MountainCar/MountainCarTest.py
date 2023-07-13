@@ -153,6 +153,18 @@ class RNDNet(nn.Module):
         return normalize_val
 
 
+# class NoisyMountainCarEnv(gym.):
+#     def __init__(self, noise_stddev=0.01, **kwargs):
+#         super().__init__(**kwargs)
+#         self.noise_stddev = noise_stddev
+#
+#     def step(self, action):
+#         observation, reward, done, info = super().step(action)
+#         noise = np.random.normal(0, self.noise_stddev, size=observation.shape)
+#         noisy_observation = observation + noise
+#         return noisy_observation, reward, done, info
+
+
 class DQN:
     def __init__(self, agent: Agent):
         self.main_net, self.target_net = Net(2, 3).to(device), Net(2, 3).to(device)
@@ -325,7 +337,8 @@ record_list = []
 target_list = []
 painter = Painter()
 
-def Specify_state(net:MyNet, state_action):
+
+def Specify_state(net: MyNet, state_action):
     global specify_state
     global record_list
     global target_list
@@ -334,7 +347,7 @@ def Specify_state(net:MyNet, state_action):
     if specify_count == 7:
         specify_state = state_action
     else:
-        if net.loss_func(specify_state, state_action) < 0.001:
+        if net.loss_func(specify_state, state_action) < 0.0001:
             record_output = net.recorder(state_action)
             target_output = net.target(state_action)
             record_output = record_output.norm().item()
@@ -345,8 +358,9 @@ def Specify_state(net:MyNet, state_action):
             painter.plot_reward(target_list, 1)
 
 
+def train():
+    global specify_count
 
-if __name__ == '__main__':
     env = gym.make("MountainCar-v0", render_mode="rgb_array")
     agent = Agent(env.observation_space.shape[0], env.action_space.n)
     DQNAgent = DQN(agent)
@@ -361,7 +375,7 @@ if __name__ == '__main__':
     test_mean_reward = []
     learn_step = 0  # DQN经验回放频率计数
 
-    reward_weight = 0.15
+    reward_weight = 0.1
 
     random.seed(23)
     np.random.seed(23)
@@ -369,9 +383,10 @@ if __name__ == '__main__':
 
     for i in range(10):
         with tqdm(total=int(rounds / 10), desc=f'Iteration {i}') as pbar:
-            net = MyNet(4, 3)
+            # net = MyNet(4, 3)
 
             for episode in range(rounds // 10):
+                net = MyNet(4, 3)
                 state, _ = env.reset(seed=21)
                 episode_reward = 0
                 time_step = 0
@@ -396,8 +411,8 @@ if __name__ == '__main__':
                     state_action = state_action.reshape(-1)
                     record, target = net(state_action)
                     coff = net.learn(state_action, record, target)
-                    Specify_state(net, state_action)
-                    print("相似状态系数:{:.3f}".format(coff))
+                    # Specify_state(net, state_action)
+                    # print("相似状态系数:{:.3f}".format(coff))
                     # external_reward = (s_prime[0] - state[0]) + (s_prime[1] ** 2 - state[1] ** 2)
 
                     # if s_prime[0] > -0.5:
@@ -416,6 +431,10 @@ if __name__ == '__main__':
                     #
                     # r = external_reward + normalize_val
                     # r = (-external_reward) * predict_error.item()
+                    if extrinsic_reward == -1:
+                        reward_weight = 0.05 + coff * (0.05 - 0.001)  # 线性插值，将RND的内在奖励权重固定在该范围内。
+                    else:
+                        reward_weight = 0.1
                     r = extrinsic_reward + reward_weight * predict_error
                     # r = external_reward if not done else 0
                     DQNAgent.store_transition(state, action, r, s_prime, done)
@@ -438,14 +457,14 @@ if __name__ == '__main__':
                 recorder.DQNLoss.append(episode_DQN_loss / (episode_learn_count if episode_learn_count != 0 else 1))
                 # painter.add_data(time_step, episode_reward)
                 # print('Episode: ', i,'| Episode_reward: ', round(episode_reward, 2))
-                print(
-                    "Episode: {}, Episode reward:{}, extrinsic reward:{:.3f},   intrinsic reward:{:.3f}.   episode DQN "
-                    "mean loss:{:.4f}, epsilon:{:.3f}".format(
-                        i,
-                        episode_reward,
-                        episode_external_reward,
-                        episode_intrinsic_reward,
-                        episode_DQN_loss / (episode_learn_count if episode_learn_count != 0 else 1), DQNAgent.EPSILON))
+                # print(
+                #     "Episode: {}, Episode reward:{}, extrinsic reward:{:.3f},   intrinsic reward:{:.3f}.   episode DQN "
+                #     "mean loss:{:.4f}, epsilon:{:.3f}".format(
+                #         i,
+                #         episode_reward,
+                #         episode_external_reward,
+                #         episode_intrinsic_reward,
+                #         episode_DQN_loss / (episode_learn_count if episode_learn_count != 0 else 1), DQNAgent.EPSILON))
                 # DQNAgent.plot_reward(recorder.episode_rewards, 1)
                 if (episode + 1) % 10 == 0:
                     pbar.set_postfix(
@@ -456,11 +475,11 @@ if __name__ == '__main__':
                     )
                 pbar.update(1)
 
-                if episode > 0 and episode % 50 == 0:
-                    test_rounds.append(episode * (i + 1))
-                    mean_reward = run_evaluate_episodes(DQNAgent)
-                    test_mean_reward.append(mean_reward)
-                    print("Episode:{}   epsilon:{}   Mean reward:{}".format(i, DQNAgent.EPSILON, mean_reward))
+                # if episode > 0 and episode % 50 == 0:
+                #     test_rounds.append(episode * (i + 1))
+                #     mean_reward = run_evaluate_episodes(DQNAgent)
+                #     test_mean_reward.append(mean_reward)
+                #     print("Episode:{}   epsilon:{}   Mean reward:{}".format(i, DQNAgent.EPSILON, mean_reward))
 
         # if not flag and i > 50:
         #     env = gym.make("MountainCar-v0", render_mode="human")
@@ -474,4 +493,10 @@ if __name__ == '__main__':
     # plt.legend()
     # plt.plot(recorder.episodes, recorder.predict_errors, label="predict_error")
     # plt.xlabel('Episodes')
-    plt.show()
+    # plt.show()
+    with open('./data/use_A.txt', 'w') as file_object:
+        file_object.write(str(recorder.episode_rewards))
+
+
+if __name__ == '__main__':
+    train()
