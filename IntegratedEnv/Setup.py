@@ -682,9 +682,9 @@ def Montezuma_revenge_experiment_lib():
 
         'epochs': IntDynamicHyperParam(8),
 
-        'n_workers': 32,
+        'n_workers': 1,
 
-        'worker_steps': 1,
+        'worker_steps': 8,
 
         'batches': 4,
 
@@ -700,7 +700,7 @@ def Montezuma_revenge_experiment_lib():
 
         'test': {
             'use_test': False,
-            'test_model': './checkpoint/PPO_MontezumaRevenge-v5_23_07_09_18_6000r-3725919-_RND.pth',
+            'test_model': './checkpoint/PPO/MontezumaRevengeNoFrameskip-v4_23_07_12_14/final-1556402-_RND.pth',
         },
     }
 

@@ -57,6 +57,7 @@ class Worker:
         self.state_shape = self.config["state_shape"]
         self.env = make_atari(self.env_name, self.max_episode_steps)
         self._stacked_states = np.zeros(self.state_shape, dtype=np.uint8)
+        self._stacked_states_info = np.zeros(self.state_shape, dtype=np.uint8)
         self.reset()
 
         self.initial = ANet()
@@ -69,7 +70,7 @@ class Worker:
 
     def reset(self):
         state, _ = self.env.reset()
-        self._stacked_states = stack_states(self._stacked_states, state, True)
+        self._stacked_states, self._stacked_states_info = stack_states(self._stacked_states, self._stacked_states_info, state, True)
 
     def step(self, conn):
         t = 1
@@ -82,7 +83,7 @@ class Worker:
                 d = True
             if self.config["render"]:
                 self.render()
-            self._stacked_states = stack_states(self._stacked_states, next_state, False)
+            self._stacked_states, self._stacked_states_info = stack_states(self._stacked_states, self._stacked_states_info, next_state, False)
             conn.send((self._stacked_states, np.sign(r), d, info))
             if d:
                 self.reset()

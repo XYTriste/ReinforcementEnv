@@ -3,6 +3,7 @@ import cv2
 import gymnasium as gym
 from copy import deepcopy
 import torch
+import matplotlib.pyplot as plt
 # from torch._six import inf
 
 
@@ -21,15 +22,24 @@ def preprocessing(img):
     return img
 
 
-def stack_states(stacked_frames, state, is_new_episode):
+def stack_states(stacked_frames, stacked_frames_info, state, is_new_episode):
+    info_state = state[:20, :]
+    state = state[20: , :]
     frame = preprocessing(state)
+    info_frame = preprocessing(info_state)
+    # plt.imshow(info_frame, cmap='gray')
+    # plt.show()
 
     if is_new_episode:
         stacked_frames = np.stack([frame for _ in range(4)], axis=0)
+        stacked_frames_info = np.stack([info_frame for _ in range(4)], axis=0)
     else:
         stacked_frames = stacked_frames[1:, ...]
         stacked_frames = np.concatenate([stacked_frames, np.expand_dims(frame, axis=0)], axis=0)
-    return stacked_frames
+
+        stacked_frames_info = stacked_frames_info[1:, ...]
+        stacked_frames_info = np.concatenate([stacked_frames_info, np.expand_dims(frame, axis=0)], axis=0)
+    return stacked_frames, stacked_frames_info
 
 
 # Calculates if value function is a good predictor of the returns (ev > 1)

@@ -22,6 +22,11 @@ class Brain:
         for param in self.target_model.parameters():
             param.requires_grad = False
 
+        self.predictor_model_info = PredictorModel(self.obs_shape).to(self.device)
+        self.target_model_info = TargetModel(self.obs_shape).to(self.device)
+        for param in self.target_model_info.parameters():
+            param.requires_grad = False
+
         self.total_trainable_params = list(self.current_policy.parameters()) + list(self.predictor_model.parameters())
         self.optimizer = Adam(self.total_trainable_params, lr=self.config["lr"])
 
