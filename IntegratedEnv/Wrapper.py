@@ -34,9 +34,9 @@ class Game:
         for i in range(1):
             s_prime, r, done, info, _ = self.env.step(action)
             s_prime = s_prime[self.width_start: self.width_end, self.height_start: self.height_end]
-            # plt.imshow(s_prime)
-            # plt.axis('off')
-            # plt.show()
+            plt.imshow(s_prime)
+            plt.axis('off')
+            plt.show()
 
             if i >= 2:
                 self.obs_2_max[i % 2] = self._process_obs(s_prime)

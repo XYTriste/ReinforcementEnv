@@ -646,9 +646,9 @@ def Montezuma_revenge_experiment_lib():
         'height_end': 160
     }
     args.rnd = {
-            'use_rnd': True,
-            'rnd_weight': 0.01,
-            'rnd_weight_decay': 1,
+        'use_rnd': True,
+        'rnd_weight': 0.01,
+        'rnd_weight_decay': 1,
     }
     args.env_name = "MontezumaRevengeNoFrameskip-v4"
     args.reward_cut = 1
@@ -712,6 +712,62 @@ def Montezuma_revenge_experiment_lib():
         m.run_training_loop()
 
     m.destroy()
+
+
+def SpaceInvaders_experiment_lib():
+    args = SetupArgs().get_args()
+
+    args.INPUT_DIM = 4
+    args.HIDDEN_DIM = 128
+    args.OUTPUT_DIM = 6
+    args.HIDDEN_DIM_NUM = 5
+    args.obs_cut = {
+        'width_start': 0,
+        'width_end': 210,
+        'height_start': 0,
+        'height_end': 160
+    }
+    args.rnd = {
+        'use_rnd': False,
+        'rnd_weight': 0.01,
+        'rnd_weight_decay': 1,
+    }
+    args.env_name = "ALE/SpaceInvaders-v5"
+    args.reward_cut = 1
+
+    experiment.create(name="ppo")
+
+    DQN_configs = {
+        'updates': 1000000,
+        'epochs': 8,
+        'n_workers': 1,
+        'worker_steps': 4,
+        'mini_batch_size': 32,
+        'update_target_model': 250,
+        'learning_rate': FloatDynamicHyperParam(1e-4, (0, 1e-3)),
+        'args': args,
+        'use_super': True,
+        'rnd': {
+            'use_rnd': True,
+            'rnd_weight': 0.01,
+            'rnd_weight_decay': 1,
+        },
+        'test': {
+            'use_test': False,
+            'test_model': './checkpoint/dqn_MontezumaRevenge-v5_23_07_09_14_.pth',
+        },
+        'algorithm_name': "DQN"
+    }
+
+    experiment.configs(DQN_configs)
+
+    m = DQN_Super_Trainer(**DQN_configs)
+
+    with experiment.start():
+        m.run_training_loop()
+
+    m.destroy()
+
 
 def Boxing_experiment_lib():
     args = SetupArgs().get_args()
