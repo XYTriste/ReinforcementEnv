@@ -60,7 +60,7 @@ class Worker:
         self._stacked_states_info = np.zeros(self.state_shape, dtype=np.uint8)
         self.reset()
 
-        self.initial = ANet()
+        # self.initial = ANet()
 
     def __str__(self):
         return str(self.id)
@@ -70,7 +70,7 @@ class Worker:
 
     def reset(self):
         state, _ = self.env.reset()
-        self._stacked_states, self._stacked_states_info = stack_states(self._stacked_states, self._stacked_states_info, state, True)
+        self._stacked_states, self._stacked_states_info, _ = stack_states(self._stacked_states, self._stacked_states_info, state, True)
 
     def step(self, conn):
         t = 1
@@ -83,8 +83,8 @@ class Worker:
                 d = True
             if self.config["render"]:
                 self.render()
-            self._stacked_states, self._stacked_states_info = stack_states(self._stacked_states, self._stacked_states_info, next_state, False)
-            conn.send((self._stacked_states, np.sign(r), d, info))
+            self._stacked_states, self._stacked_states_info, efficient = stack_states(self._stacked_states, self._stacked_states_info, next_state, False)
+            conn.send((self._stacked_states, np.sign(r), d, info, efficient))
             if d:
                 self.reset()
                 t = 1

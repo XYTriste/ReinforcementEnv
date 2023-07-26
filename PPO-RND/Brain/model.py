@@ -66,7 +66,7 @@ class PolicyModel(nn.Module, ABC):
         nn.init.orthogonal_(self.ext_value.weight, gain=np.sqrt(0.01))
         self.ext_value.bias.data.zero_()
 
-    def forward(self, inputs):
+    def forward(self, inputs, action_mask=None, actions=None):
         x = inputs / 255.
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
@@ -80,6 +80,10 @@ class PolicyModel(nn.Module, ABC):
         int_value = self.int_value(x_v)
         ext_value = self.ext_value(x_v)
         policy = self.policy(x_pi)
+        if action_mask is not None:
+            for i in range(len(policy)):
+                if action_mask[i] is False:
+                    policy[i, actions[i]] = 1e-10
         probs = F.softmax(policy, dim=1)
         dist = Categorical(probs)
 

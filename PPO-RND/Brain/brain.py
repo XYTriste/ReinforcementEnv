@@ -35,12 +35,12 @@ class Brain:
 
         self.mse_loss = torch.nn.MSELoss()
 
-    def get_actions_and_values(self, state, batch=False):
+    def get_actions_and_values(self, state, batch=False, action_mask=None, actions=None):
         if not batch:
             state = np.expand_dims(state, 0)
         state = from_numpy(state).to(self.device)
         with torch.no_grad():
-            dist, int_value, ext_value, action_prob = self.current_policy(state)
+            dist, int_value, ext_value, action_prob = self.current_policy(state, action_mask, actions)
             action = dist.sample()
             log_prob = dist.log_prob(action)
         return action.cpu().numpy(), int_value.cpu().numpy().squeeze(), \
