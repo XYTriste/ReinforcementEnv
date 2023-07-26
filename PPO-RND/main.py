@@ -28,6 +28,7 @@ if __name__ == '__main__':
     logger = Logger(brain, **config)
 
     all_returns = []
+    save_step = 1
 
     if not config["do_test"]:
         if not config["train_from_scratch"]:
@@ -140,7 +141,8 @@ if __name__ == '__main__':
                         all_returns.append(episode_ext_reward)
                         logger.log_episode(episode, episode_ext_reward, visited_rooms)
                     episode_ext_reward = 0
-                    if len(all_returns) % 1000 == 0 and len(all_returns) > 0:
+                    if len(all_returns) >= save_step * 1000 and len(all_returns) > 0:
+                        save_step += 1
                         with open('./datas/{}.txt'.format(len(all_returns)), 'w') as file_object:
                             file_object.write(str(all_returns))
 
