@@ -36,7 +36,7 @@ def mse(frame1, frame2):
 
 def stack_states(stacked_frames, stacked_frames_info, state, is_new_episode):
     info_state = state[:20, :]
-    state = state[20:, :]
+    # state = state[20:, :]
     frame = preprocessing(state)
     info_frame = preprocessing(info_state)
 

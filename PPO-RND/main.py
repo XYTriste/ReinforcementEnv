@@ -3,6 +3,7 @@ from Common.play import Play
 from Common.config import get_params
 from Common.logger import Logger
 from torch.multiprocessing import Process, Pipe
+from datetime import datetime
 import numpy as np
 from Brain.brain import Brain
 import gymnasium as gym
@@ -16,7 +17,11 @@ def run_workers(worker, conn):
 if __name__ == '__main__':
     config = get_params()
 
+    formatted_time = datetime.now().strftime("%y_%m_%d_%H")
+    save_path = "./datas/{}_{}/".format(config["env_name"], formatted_time)
+
     render_mode = "human" if config["do_test"] else "rgb_array"
+    use_mask = False
     test_env = gym.make(config["env_name"], render_mode="rgb_array")
     config.update({"n_actions": test_env.action_space.n})
     test_env.close()
@@ -117,8 +122,12 @@ if __name__ == '__main__':
                 for worker_id, parent in enumerate(parents):
                     total_states[worker_id, t] = parent.recv()
 
-                total_actions[:, t], total_int_values[:, t], total_ext_values[:, t], total_log_probs[:, t], \
-                total_action_probs[:, t] = brain.get_actions_and_values(total_states[:, t], batch=True, action_mask=total_action_efficient[:, t], actions=total_actions[:, t])
+                if use_mask:
+                    total_actions[:, t], total_int_values[:, t], total_ext_values[:, t], total_log_probs[:, t], \
+                    total_action_probs[:, t] = brain.get_actions_and_values(total_states[:, t], batch=True, action_mask=total_action_efficient[:, t], actions=total_actions[:, t])
+                else:
+                    total_actions[:, t], total_int_values[:, t], total_ext_values[:, t], total_log_probs[:, t], \
+                        total_action_probs[:, t] = brain.get_actions_and_values(total_states[:, t], batch=True)
                 for parent, a in zip(parents, total_actions[:, t]):
                     parent.send(a)
 
@@ -143,7 +152,7 @@ if __name__ == '__main__':
                     episode_ext_reward = 0
                     if len(all_returns) >= save_step * 1000 and len(all_returns) > 0:
                         save_step += 1
-                        with open('./datas/{}.txt'.format(len(all_returns)), 'w') as file_object:
+                        with open(save_path + "{} extrinsic reward.txt".format(str(len(all_returns))), 'w') as file_object:
                             file_object.write(str(all_returns))
 
             total_next_obs = concatenate(total_next_obs)
