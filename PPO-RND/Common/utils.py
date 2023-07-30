@@ -48,9 +48,9 @@ def stack_states(stacked_frames, stacked_frames_info, state, is_new_episode):
         stacked_frames = np.stack([frame for _ in range(4)], axis=0)
         stacked_frames_info = np.stack([info_frame for _ in range(4)], axis=0)
     else:
-        mse_error = mse(stacked_frames[-1], frame)
-        if mse_error < 0.3:
-            efficient = False
+        # mse_error = mse(stacked_frames[-1], frame)
+        # if mse_error < 0.2:
+        #     efficient = False
         # kl = kl_div(stacked_frames[-1].flatten(), frame.flatten())
 
         stacked_frames = stacked_frames[1:, ...]
