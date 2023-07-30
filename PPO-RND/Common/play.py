@@ -25,7 +25,7 @@ class Play:
         for ep in range(self.max_episode):
             self.env.seed(ep)
             s, _ = self.env.reset()
-            stacked_states = stack_states(stacked_states, s, True)
+            stacked_states, _, _ = stack_states(stacked_states, None, s, True)
             episode_reward = 0
             clipped_ep_reward = 0
             done = False
@@ -36,7 +36,7 @@ class Play:
                 episode_reward += r
                 clipped_ep_reward += np.sign(r)
 
-                stacked_states = stack_states(stacked_states, s_, False)
+                stacked_states, _, _ = stack_states(stacked_states, None, s_, False)
 
                 int_reward = self.agent.calculate_int_rewards(stacked_states[-1, ...].reshape(1, 84, 84), batch=False)
                 int_rewards.append(int_reward)

@@ -28,33 +28,60 @@ def _process_obs(obs):
 
 
 if __name__ == '__main__':
-    env = gymnasium.make("MontezumaRevengeNoFrameskip-v4", render_mode="human")
+    env = gymnasium.make("MontezumaRevengeNoFrameskip-v4", render_mode="rgb_array")
     maxmean = 0
     minmean = 999
     maxkl = 0
     minkl = 999
 
+    specify_state = None
+    invalid_count = 0
+    invalid_action = []
+
+    valid_count = 0
+    valid_action = []
+
     i = 0
 
     state, info = env.reset()
-    while i < 2000:
-        action = 3
+    while True:
+        action = env.action_space.sample()
         s_prime, reward, done, _, _ = env.step(action)
 
         c_s = _process_obs(state)
         n_s = _process_obs(s_prime)
 
-        mean = mean_squared_error(c_s, n_s)
-        kl = kl_divergence(c_s, n_s)
-        maxmean = max(mean, maxmean)
-        maxkl = max(maxkl, kl)
-        minmean = min(minmean, mean)
-        minkl = min(minkl, kl)
+        # plt.imshow(c_s)
+        # plt.axis('off')
+        # plt.show()
+        #
+        # mean = mean_squared_error(c_s, n_s)
+        # kl = kl_divergence(c_s, n_s)
+        # maxmean = max(mean, maxmean)
+        # maxkl = max(maxkl, kl)
+        # minmean = min(minmean, mean)
+        # minkl = min(minkl, kl)
+        #
+        #
+        # print("mean:", mean, " kl:", kl)
+        if i == 15 and not done:
+            specify_state = c_s
+        elif specify_state is not None and mean_squared_error(c_s, specify_state) < 0.1:
+            if action == 0:
+                if invalid_count < 5:
+                    invalid_count += 1
+                invalid_action.append(invalid_count)
+            else:
+                valid_count += 1
+                valid_action.append(valid_count)
 
+        ia = np.array(invalid_action)
+        va = np.array(valid_action)
+        plt.plot(ia, label="invalid action", color="red")
+        plt.plot(va, label="valid action", color="green")
+        plt.pause(0.001)
 
-        print("mean:", mean, " kl:", kl)
-
-
+        print("invalid action:", invalid_action, " valid action:", valid_action)
         if done:
             state, info = env.reset()
 
@@ -62,7 +89,7 @@ if __name__ == '__main__':
 
         i += 1
 
-    print("Max mean:{}   Min mean:{}    Max KL:{}   Min KL:{}".format(maxmean, minmean, maxkl, minkl))
+    # print("Max mean:{}   Min mean:{}    Max KL:{}   Min KL:{}".format(maxmean, minmean, maxkl, minkl))
     # while True:
     #     action = env.action_space.sample()
     #     print("action", action)

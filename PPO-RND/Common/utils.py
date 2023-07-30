@@ -6,6 +6,8 @@ import torch
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import kl_div
+
+
 # from torch._six import inf
 
 
@@ -13,7 +15,7 @@ def mean_of_list(func):
     def function_wrapper(*args, **kwargs):
         lists = func(*args, **kwargs)
         return [sum(list) / len(list) for list in lists[:-4]] + [explained_variance(lists[-4], lists[-3])] + \
-               [explained_variance(lists[-2], lists[-1])]
+            [explained_variance(lists[-2], lists[-1])]
 
     return function_wrapper
 
@@ -23,6 +25,7 @@ def preprocessing(img):
     img = cv2.resize(img, (84, 84), interpolation=cv2.INTER_AREA)
     return img
 
+
 def mse(frame1, frame2):
     frame1 = frame1.flatten()
     frame2 = frame2.flatten()
@@ -30,9 +33,10 @@ def mse(frame1, frame2):
     diff = np.square(frame1 - frame2)
     return np.mean(diff)
 
+
 def stack_states(stacked_frames, stacked_frames_info, state, is_new_episode):
     info_state = state[:20, :]
-    state = state[20: , :]
+    state = state[20:, :]
     frame = preprocessing(state)
     info_frame = preprocessing(info_state)
 
@@ -52,8 +56,11 @@ def stack_states(stacked_frames, stacked_frames_info, state, is_new_episode):
         stacked_frames = stacked_frames[1:, ...]
         stacked_frames = np.concatenate([stacked_frames, np.expand_dims(frame, axis=0)], axis=0)
 
-        stacked_frames_info = stacked_frames_info[1:, ...]
-        stacked_frames_info = np.concatenate([stacked_frames_info, np.expand_dims(frame, axis=0)], axis=0)
+        if stacked_frames_info is not None:
+            stacked_frames_info = stacked_frames_info[1:, ...]
+            stacked_frames_info = np.concatenate([stacked_frames_info, np.expand_dims(frame, axis=0)], axis=0)
+        else:
+            pass
     return stacked_frames, stacked_frames_info, efficient
 
 
