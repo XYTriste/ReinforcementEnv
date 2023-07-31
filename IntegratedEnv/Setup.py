@@ -679,13 +679,13 @@ def Montezuma_revenge_experiment_lib():
     }
 
     PPO_configs = {
-        'updates': 50000,
+        'updates': 75000,
 
         'epochs': IntDynamicHyperParam(8),
 
         'n_workers': 32,
 
-        'worker_steps': 8,
+        'worker_steps': 32,
 
         'batches': 4,
 
