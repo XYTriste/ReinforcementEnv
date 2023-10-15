@@ -647,11 +647,10 @@ def Montezuma_revenge_experiment_lib():
     }
     args.rnd = {
         'use_rnd': True,
-        'rnd_weight': 0.1,
+        'rnd_weight': 0.01,
         'rnd_weight_decay': 1,
     }
     args.env_name = "MontezumaRevengeNoFrameskip-v4"
-    args.render_mode = "rgb_array"
     args.reward_cut = 1
 
     experiment.create(name="ppo")
@@ -679,13 +678,13 @@ def Montezuma_revenge_experiment_lib():
     }
 
     PPO_configs = {
-        'updates': 75000,
+        'updates': 1500000,
 
         'epochs': IntDynamicHyperParam(8),
 
-        'n_workers': 32,
+        'n_workers': 2,
 
-        'worker_steps': 32,
+        'worker_steps': 8,
 
         'batches': 4,
 
@@ -784,8 +783,8 @@ def Boxing_experiment_lib():
         'height_end': 160
     }
     args.rnd = {
-        'use_rnd': True,
-        'rnd_weight': 0.1,
+        'use_rnd': False,
+        'rnd_weight': 0.01,
         'rnd_weight_decay': 1,
     }
     args.env_name = "ALE/Boxing-v5"
@@ -805,7 +804,7 @@ def Boxing_experiment_lib():
         'use_super': False,
         'rnd': {
             'use_rnd': True,
-            'rnd_weight': 0.1,
+            'rnd_weight': 0.01,
             'rnd_weight_decay': 1,
         },
         'test': {
@@ -820,7 +819,7 @@ def Boxing_experiment_lib():
 
         'epochs': IntDynamicHyperParam(8),
 
-        'n_workers': 32,
+        'n_workers': 128,
 
         'worker_steps': 128,
 

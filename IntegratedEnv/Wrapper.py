@@ -82,6 +82,9 @@ class Game:
     @staticmethod
     def _process_obs(obs):
         obs = cv2.cvtColor(obs, cv2.COLOR_RGB2GRAY)
+        for i in range(30):
+            for j in range(30):
+                obs[i][j] = 5
         obs = cv2.resize(obs, (84, 84), interpolation=cv2.INTER_AREA)
         return obs
 
