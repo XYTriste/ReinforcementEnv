@@ -81,6 +81,7 @@ if __name__ == '__main__':
                 writer.add_scalar("Episode extrinsic reward", episode_extrinsic_reward, i * (rounds // 10) + episode)
                 writer.add_scalar("Episode reward", episode_reward, i * (rounds // 10) + episode)
                 writer.add_scalar("Episode DQN Loss", episode_DQN_loss, i * (rounds // 10) + episode)
+                writer.add_scalar("Time step", time_step, i * (rounds // 10) + episode)
 
                 if agent.EPSILON > 0.01:
                     agent.EPSILON *= 0.99
