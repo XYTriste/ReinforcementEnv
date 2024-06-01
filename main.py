@@ -1,170 +1,61 @@
-import time
+import gymnasium as gym
+import threading
+import pygame
 
-import numpy as np
-import matplotlib.pyplot as plt
-from sympy import Piecewise
+# 创建CartPole-v1环境
+env = gym.make('CartPole-v1', render_mode='human')
 
-# 创建初始的空曲线
-x = []
-y = []
-
-# 创建图形对象
-fig, ax = plt.subplots()
-
-# 创建初始的曲线对象
-line, = ax.plot(x, y)
+# 收集专家数据
+expert_data = []
+num_episodes = 3
 
 
-# 更新曲线的函数
-# def update_curve(new_data):
-#     # 添加新数据
-#     x.append(len(x))
-#     y.append(new_data)
-#
-#     # 更新曲线的数据
-#     line.set_data(x, y)
-#
-#     # 重新调整曲线的范围
-#     ax.relim()
-#     ax.autoscale_view()
-#
-#     # 重新绘制图形
-#     fig.canvas.draw()
-#
-#
-# # 添加新数据并更新曲线
-# for i in range(10):
-#     new_data = np.random.rand()
-#     update_curve(new_data)
-#
-# # 显示图形
-# plt.show()
+def register_input():
+    global quit, restart
+    for event in pygame.event.get():
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_LEFT:
+                return 0
+            if event.key == pygame.K_RIGHT:
+                return 1  # set 1.0 for wheels to block to zero rotation
+            if event.key == pygame.K_RETURN:
+                restart = True
+            if event.key == pygame.K_ESCAPE:
+                quit = True
+        if event.type == pygame.QUIT:
+            quit = True
 
 
-# import numpy as np
-# import matplotlib.pyplot as plt
-#
-# # 生成随机数据
-# data = np.random.rand(10, 10)
-#
-# # 绘制热力图
-# plt.imshow(data, cmap='hot', interpolation='nearest')
-#
-# # 添加颜色条
-# plt.colorbar()
-#
-# # 显示图形
-# plt.show()
+def manual_control():
+    global expert_data
+    state, _ = env.reset()
+    done = False
+    episode_data = []
 
-# import gymnasium
-# import keyboard
-#
-# # 创建Montezuma's Revenge环境
-# env = gymnasium.make("ALE/MontezumaRevenge-v5", render_mode="human")
-#
-# # 重置环境并获取初始观察
-# observation, _ = env.reset()
-#
-#
-# # 执行1000个动作
-# while True:
-#     # 随机选择一个动作
-#     # action = env.action_space.sample()
-#
-#
-#
-#
-#     # 执行选定的动作，并获取下一个观察、奖励、终止标志和额外信息
-#     next_observation, reward, done, info, _ = env.step(action)
-#
-#     # 在控制台打印当前观察和奖励
-#     print('Observation:', next_observation)
-#     print('Reward:', reward)
-#
-#     # 如果游戏结束，重置环境
-#     if done:
-#         observation, _ = env.reset()
-#     else:
-#         observation = next_observation
-#
-# # 关闭环境
-# env.close()
+    while True:
+        env.render()
 
-# import cv2
-# import numpy as np
-# import gymnasium as gym
-#
-# def preprocess_observation(observation):
-#     # 将原始观测从RGB图像转换为灰度图像
-#     gray = cv2.cvtColor(observation, cv2.COLOR_RGB2GRAY)
-#     # 对灰度图像进行裁剪，截取游戏关键区域
-#     cropped = gray[34:194, :]
-#     # 调整图像大小为所需的尺寸
-#     resized = cv2.resize(cropped, (84, 84), interpolation=cv2.INTER_AREA)
-#     # 将像素值归一化到[0, 1]范围
-#     normalized = resized / 255.0
-#     # 返回处理后的状态特征
-#     return normalized
-#
-# # 示例使用方法
-# env = gym.make("ALE/MontezumaRevenge-v5")
-# observation, _ = env.reset()
-# state = preprocess_observation(observation)
-# print(state)
-# x = 1
-# count = 0
-#
-# while x >= 0.01:
-#     x *= 0.997
-#     count += 1
-#
-# print("乘以0.9995多少次后小于0.01：", count)
-# # s = "123"
-# # print(s + "RND" if True else "")
-# import numpy as np
-# import matplotlib.pyplot as plt
-#
-# # 行为价值函数的二维数组
-# action_values = np.array([[0.1, 0.3, 0.2],
-#                           [0.2, 0.5, 0.3],
-#                           [0.3, 0.2, 0.1]])
-#
-# # 创建热力图对象
-# plt.imshow(action_values, cmap='hot')
-#
-# # 自定义标签和标题
-# plt.xlabel("Dealer's Card Value")
-# plt.ylabel("Player's Sum")
-# plt.title("Action Value Function")
-#
-# # 添加颜色条
-# plt.colorbar()
-#
-# # 显示热力图
-# plt.show()
+        action = register_input()  # 从键盘输入动作
+        next_state, reward, done, _, _ = env.step(action)
+        episode_data.append((state, action))
+        state = next_state
 
-# import matplotlib.pyplot as plt
-# x = list(range(1, 21))  # epoch array
-# loss = [2 / (i**2) for i in x]  # loss values array
-# plt.ion()
-# for i in range(1, len(x)):
-#     ix = x[:i]
-#     iy = loss[:i]
-#     plt.cla()
-#     plt.title("loss")
-#     plt.plot(ix, iy)
-#     plt.xlabel("epoch")
-#     plt.ylabel("loss")
-#     plt.pause(0.5)
-# plt.ioff()
-# plt.show()
-# def get_exploration_cofficient(x, N):
-#     epsilon = 0.5 - 0.4 * (x - N / 40) / (N / 2 - N / 40)
-#     return epsilon
-# 
-# 
-# for i in range(200):
-#     print(get_exploration_cofficient(i, 200))
-from datetime import datetime
-formatted_time = datetime.now().strftime("%y_%m_%d_%H")
-print(formatted_time)
+        if done:
+            expert_data.extend(episode_data)
+            break
+
+
+# 创建一个线程用于手动控制
+control_thread = threading.Thread(target=manual_control)
+control_thread.start()
+
+# 等待手动控制线程结束
+control_thread.join()
+
+# 关闭环境显示
+env.close()
+
+# 打印收集到的专家数据
+print("Expert Data:")
+for transition in expert_data:
+    print(transition)

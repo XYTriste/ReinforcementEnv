@@ -368,6 +368,10 @@ def train():
     recorder = Recorder()
     painter = Painter()
 
+    queue = []
+    oneDimension = []
+    twoDimension = []
+
     flag = False
     rounds = 1000
 
@@ -405,12 +409,20 @@ def train():
                     specify_count += 1
 
                     s_prime, extrinsic_reward, done, _, _, = env.step(action)
-                    action_numpy = np.full((2,), action)
-                    state_action = np.vstack((state, action_numpy))
-                    state_action = torch.from_numpy(state_action).float().unsqueeze(0)
-                    state_action = state_action.reshape(-1)
-                    record, target = net(state_action)
-                    coff = net.learn(state_action, record, target)
+
+                    euclidean_distance = np.linalg.norm(s_prime - state)
+                    oneDimension.append(euclidean_distance)
+
+                    x_state = np.mean(np.square(s_prime[0] - state[0]))
+                    velocity = np.mean(np.square(s_prime[1] - state[1]))
+                    twoDimension.append((x_state, velocity))
+
+                    # action_numpy = np.full((2,), action)
+                    # state_action = np.vstack((state, action_numpy))
+                    # state_action = torch.from_numpy(state_action).float().unsqueeze(0)
+                    # state_action = state_action.reshape(-1)
+                    # record, target = net(state_action)
+                    # coff = net.learn(state_action, record, target)
                     # Specify_state(net, state_action)
                     # print("相似状态系数:{:.3f}".format(coff))
                     # external_reward = (s_prime[0] - state[0]) + (s_prime[1] ** 2 - state[1] ** 2)
@@ -423,24 +435,28 @@ def train():
                     #     external_reward = 0
 
                     # external_reward = 100 * (0.5 - abs(state[0])) - 10 * abs(state[1])
-                    predict, target = RNDNetWork(torch.from_numpy(s_prime))
+                    # predict, target = RNDNetWork(torch.from_numpy(s_prime))
                     # # predict_error = np.linalg.norm(target - predict)
-                    predict_error = RNDNetWork.update_parameters(predict, target)
+                    # predict_error = RNDNetWork.update_parameters(predict, target)
                     # normalize_val = RNDNetWork.normalize_error(predict_error.item())
                     # episode_predict_error += normalize_val
                     #
                     # r = external_reward + normalize_val
                     # r = (-external_reward) * predict_error.item()
-                    if extrinsic_reward == -1:
-                        reward_weight = 0.05 + coff * (0.05 - 0.001)  # 线性插值，将RND的内在奖励权重固定在该范围内。
-                    else:
-                        reward_weight = 0.1
-                    r = extrinsic_reward + reward_weight * predict_error
+                    # if extrinsic_reward == -1:
+                    #     reward_weight = 0.05 + coff * (0.05 - 0.001)  # 线性插值，将RND的内在奖励权重固定在该范围内。
+                    # else:
+                    #     reward_weight = 0.1
+                    # r = extrinsic_reward + reward_weight * predict_error
                     # r = external_reward if not done else 0
+                    # r = extrinsic_reward + np.sum(queue[-1] - np.average(queue))
+                    r = extrinsic_reward
                     DQNAgent.store_transition(state, action, r, s_prime, done)
 
                     episode_reward += extrinsic_reward
                     episode_external_reward += extrinsic_reward
+
+                    predict_error = 1
                     episode_intrinsic_reward += reward_weight * predict_error
                     state = s_prime
                     learn_step += 1
@@ -494,8 +510,23 @@ def train():
     # plt.plot(recorder.episodes, recorder.predict_errors, label="predict_error")
     # plt.xlabel('Episodes')
     # plt.show()
-    with open('./data/use_A.txt', 'w') as file_object:
+    with open('data/use_B_2000.txt', 'w') as file_object:
         file_object.write(str(recorder.episode_rewards))
+
+    with open('data/oneDimension.txt', 'w') as file_object:
+        for item in oneDimension:
+            var = "{:12f}".format(item)
+            line = var + "\n"
+            file_object.write(line)
+
+    with open('data/twoDimension.txt', 'w') as file_object:
+        for item in twoDimension:
+            x_state, velocity = item
+            x_state = "{:12f}".format(x_state)
+            velocity = "{:12f}".format(velocity)
+
+            line = x_state + "," + velocity + "\n"
+            file_object.write(line)
 
 
 if __name__ == '__main__':

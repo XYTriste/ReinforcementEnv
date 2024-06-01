@@ -850,6 +850,86 @@ def Boxing_experiment_lib():
 
     m.destroy()
 
+def Game2048_experiment_lib():
+    args = SetupArgs().get_args()
+
+    args.INPUT_DIM = 4
+    args.HIDDEN_DIM = 128
+    args.OUTPUT_DIM = 4
+    args.HIDDEN_DIM_NUM = 5
+    # args.obs_cut = {
+    #     'width_start': 25,
+    #     'width_end': 185,
+    #     'height_start': 0,
+    #     'height_end': 160
+    # }
+    args.rnd = {
+        'use_rnd': False,
+        'rnd_weight': 0.01,
+        'rnd_weight_decay': 1,
+    }
+    args.env_name = "ALE/Boxing-v5"
+    args.reward_cut = 1
+
+    experiment.create(name="ppo")
+
+    DQN_configs = {
+        'updates': 1000000,
+        'epochs': 8,
+        'n_workers': 8,
+        'worker_steps': 4,
+        'mini_batch_size': 32,
+        'update_target_model': 250,
+        'learning_rate': FloatDynamicHyperParam(1e-4, (0, 1e-3)),
+        'args': args,
+        'use_super': False,
+        'rnd': {
+            'use_rnd': True,
+            'rnd_weight': 0.01,
+            'rnd_weight_decay': 1,
+        },
+        'test': {
+            'use_test': False,
+            'test_model': None,
+        },
+        'algorithm_name': "Dueling DQN"
+    }
+
+    PPO_configs = {
+        'updates': 50000,
+
+        'epochs': IntDynamicHyperParam(8),
+
+        'n_workers': 128,
+
+        'worker_steps': 128,
+
+        'batches': 4,
+
+        'value_loss_coef': FloatDynamicHyperParam(0.5),
+
+        'entropy_bonus_coef': FloatDynamicHyperParam(0.01),
+
+        'clip_range': FloatDynamicHyperParam(0.1),
+
+        'learning_rate': FloatDynamicHyperParam(1e-3, (0, 1e-3)),
+
+        'args': args,
+
+        'test': {
+            'use_test': False,
+            'test_model': None,
+        },
+    }
+
+    experiment.configs(PPO_configs)
+
+    m = PPOTrainer(**PPO_configs)
+
+    with experiment.start():
+        m.run_training_loop()
+
+    m.destroy()
 
 if __name__ == "__main__":
     # torch.multiprocessing.set_start_method('spawn')
